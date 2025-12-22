@@ -129,10 +129,13 @@ All fixtures are automatically available when the package is installed:
 | Fixture | Scope | Description |
 |---------|-------|-------------|
 | `authenticated_page` | function | Playwright page logged into Wagtail admin |
+| `authenticated_page_fast` | function | Faster auth using saved storage state |
+| `authenticated_browser_context` | function | Browser context with pre-auth state |
 | `server_url` | function | Base URL of the live test server |
 | `admin_user_e2e` | function | Creates admin user for E2E testing |
 | `admin_credentials` | function | Default admin credentials |
 | `wagtail_site` | function | Creates Wagtail site with root page |
+| `storage_state_path` | session | Path for storing auth state |
 
 ### Usage Example
 
@@ -155,6 +158,38 @@ import pytest
 @pytest.fixture
 def admin_credentials():
     return {"username": "custom_admin", "password": "custom_password"}
+```
+
+### Authentication Persistence (Storage State)
+
+For faster test execution, use `authenticated_page_fast` which saves and reuses
+login state across tests:
+
+```python
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+def test_fast_auth(authenticated_page_fast, server_url):
+    # Uses saved storage state - no login required after first test
+    authenticated_page_fast.goto(f"{server_url}/admin/")
+```
+
+For multiple pages with shared auth:
+
+```python
+def test_multi_page(authenticated_browser_context, server_url):
+    page1 = authenticated_browser_context.new_page()
+    page2 = authenticated_browser_context.new_page()
+    # Both pages are already logged in
+```
+
+You can also save storage state manually:
+
+```python
+from wagtail_scenario_test import WagtailAdmin
+
+def test_save_state(authenticated_page, server_url):
+    admin = WagtailAdmin(authenticated_page, server_url)
+    admin.save_storage_state("auth_state.json")
 ```
 
 ## Page Objects
