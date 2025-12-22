@@ -1,9 +1,10 @@
 # wagtail-scenario-test
 
-E2E scenario testing framework for Wagtail applications.
+E2E scenario testing framework for Wagtail applications using Playwright.
 
 ## Features
 
+- **WagtailAdmin Facade**: Simple, intuitive API for Wagtail admin operations
 - **Page Object Pattern**: Maintainable abstractions for Wagtail admin UI
 - **Pytest Fixtures**: Ready-to-use fixtures for authenticated browser sessions
 - **Factory Support**: Base factories for test data creation
@@ -12,139 +13,138 @@ E2E scenario testing framework for Wagtail applications.
 
 ```bash
 pip install wagtail-scenario-test
+
+# Install Playwright browsers
+playwright install
 ```
 
 ## Quick Start
 
-### 1. Configure pytest
-
-```python
-# conftest.py
-pytest_plugins = ["wagtail_scenario_test.fixtures"]
-```
-
-Or simply install the package - fixtures are auto-registered via pytest11 entry point.
-
-### 2. Configure Django settings for E2E tests
-
-```python
-# tests/settings.py
-LANGUAGE_CODE = "en"
-
-WAGTAIL_CONTENT_LANGUAGES = [
-    ("en", "English"),
-]
-
-# For E2E tests with live_server
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
-```
-
-### 3. Write your first E2E test
+### 1. Write your first E2E test
 
 ```python
 import pytest
-from wagtail_scenario_test import SnippetAdminPage
+from wagtail_scenario_test import WagtailAdmin
 
 @pytest.mark.e2e
 @pytest.mark.django_db(transaction=True)
-def test_create_my_snippet(authenticated_page, server_url):
+def test_create_snippet(authenticated_page, server_url):
     """Test creating a snippet through the admin UI."""
-    # Create a Page Object for your snippet
-    admin = SnippetAdminPage(
-        authenticated_page,
-        server_url,
-        app_name="myapp",
-        model_name="mysnippet",
-    )
+    admin = WagtailAdmin(authenticated_page, server_url)
+
+    # Get snippet admin for your model
+    snippet = admin.snippet("myapp.mymodel")
 
     # Create a new snippet
-    admin.create(name="Test Snippet")
+    snippet.create(name="My New Item")
 
-    # Assert it was created
-    admin.assert_success_message()
-    assert admin.item_exists_in_list("Test Snippet")
+    # Verify success
+    snippet.assert_success_message()
+    assert snippet.item_exists_in_list("My New Item")
 ```
 
-### 4. Run tests
+### 2. Configure Django settings
+
+```python
+# tests/settings.py (or conftest.py)
+DJANGO_SETTINGS_MODULE = "tests.settings"
+
+# Required settings
+LANGUAGE_CODE = "en"
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+
+WAGTAIL_CONTENT_LANGUAGES = [("en", "English")]
+```
+
+### 3. Run tests
 
 ```bash
 # Headless (for CI)
-pytest tests/e2e/ -v
+pytest tests/ -m e2e
 
 # With browser visible
-pytest tests/e2e/ -v --headed
+pytest tests/ -m e2e --headed
 
 # With slow motion (for debugging)
-pytest tests/e2e/ -v --headed --slowmo=500
+pytest tests/ -m e2e --headed --slowmo=500
 ```
 
-## Page Objects
+## WagtailAdmin Facade
 
-### BasePage
-
-Base class with common browser interactions:
+The `WagtailAdmin` class is the main entry point for E2E testing:
 
 ```python
-from wagtail_scenario_test import BasePage
+from wagtail_scenario_test import WagtailAdmin
 
-class MyCustomPage(BasePage):
-    def do_something(self):
-        self.goto("/my-path/")
-        self.click_button("Submit")
-        self.assert_visible("Success!")
+def test_admin_operations(authenticated_page, server_url):
+    admin = WagtailAdmin(authenticated_page, server_url)
+
+    # Navigate
+    admin.go_to_dashboard()
+
+    # Search
+    admin.global_search("my query")
+
+    # Work with snippets
+    snippet = admin.snippet("blog.category")
+    snippet.create(name="Technology")
+
+    # Assertions
+    admin.assert_success_message()
+    admin.assert_success_message(contains="created")
 ```
 
-### WagtailAdminPage
-
-General Wagtail admin operations:
+### Snippet Operations
 
 ```python
-from wagtail_scenario_test import WagtailAdminPage
+snippet = admin.snippet("myapp.mymodel")
 
-admin = WagtailAdminPage(page, base_url)
-admin.login("admin", "password")
-admin.go_to_dashboard()
-admin.search("my query")
-admin.assert_success_message()
-```
+# Navigation
+snippet.go_to_list()           # Go to list view
+snippet.go_to_add()            # Go to add form
+snippet.go_to_edit(123)        # Go to edit form for ID 123
 
-### SnippetAdminPage
+# CRUD
+snippet.create(name="New Item")              # Create with name field
+snippet.create(name="Item", id_slug="item")  # Create with additional fields
+snippet.save()                               # Click Save button
+snippet.delete()                             # Delete with confirmation
 
-For Wagtail snippets (any model registered with `@register_snippet`):
-
-```python
-from wagtail_scenario_test import SnippetAdminPage
-
-# Generic usage
-admin = SnippetAdminPage(
-    page,
-    base_url,
-    app_name="myapp",
-    model_name="mymodel",
-)
-
-# CRUD operations
-admin.create(name="New Item")
-admin.click_item_in_list("New Item")
-admin.save()
-admin.delete()
+# List operations
+count = snippet.get_item_count()             # Count items in list
+items = snippet.get_list_items()             # Get all item titles
+exists = snippet.item_exists_in_list("Name") # Check if item exists
+snippet.click_item_in_list("Name")           # Click to edit
 
 # Assertions
-admin.assert_item_created("New Item")
-admin.assert_validation_error("This field is required")
+snippet.assert_success_message()
+snippet.assert_item_created("New Item")
+snippet.assert_validation_error("This field is required")
 ```
 
 ## Fixtures
 
 All fixtures are automatically available when the package is installed:
 
-| Fixture | Description |
-|---------|-------------|
-| `server_url` | Base URL of the live test server |
-| `wagtail_site` | Creates Wagtail site with root page and locale |
-| `admin_credentials` | Default admin credentials (customizable) |
-| `admin_user_e2e` | Creates admin user for E2E testing |
-| `authenticated_page` | Playwright page logged into Wagtail admin |
+| Fixture | Scope | Description |
+|---------|-------|-------------|
+| `authenticated_page` | function | Playwright page logged into Wagtail admin |
+| `server_url` | function | Base URL of the live test server |
+| `admin_user_e2e` | function | Creates admin user for E2E testing |
+| `admin_credentials` | function | Default admin credentials |
+| `wagtail_site` | function | Creates Wagtail site with root page |
+
+### Usage Example
+
+```python
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+def test_with_fixtures(authenticated_page, server_url):
+    # authenticated_page is already logged in
+    # server_url is the test server URL (e.g., "http://localhost:12345")
+    admin = WagtailAdmin(authenticated_page, server_url)
+    admin.go_to_dashboard()
+```
 
 ### Customizing Credentials
 
@@ -154,59 +154,140 @@ import pytest
 
 @pytest.fixture
 def admin_credentials():
-    return {"username": "my_admin", "password": "my_password"}
+    return {"username": "custom_admin", "password": "custom_password"}
 ```
 
-## Extending Page Objects
+## Page Objects
 
-Create custom Page Objects for your specific snippets:
+### BasePage
+
+Base class with common browser interactions:
 
 ```python
-from wagtail_scenario_test import SnippetAdminPage
+from wagtail_scenario_test.page_objects import BasePage
 
-class ReusableBlockAdmin(SnippetAdminPage):
-    """Page Object for ReusableBlock admin."""
+class MyPage(BasePage):
+    def do_something(self):
+        self.goto("/my-path/")
+        self.click_button("Submit")
+        self.wait_for_navigation()
+        self.assert_visible("Success!")
+```
+
+**Available Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `goto(path)` | Navigate to path |
+| `reload()` | Reload current page |
+| `current_path()` | Get current URL path |
+| `wait_for_navigation()` | Wait for page load |
+| `wait_for_element(selector)` | Wait for element visibility |
+| `click_button(name)` | Click button by name |
+| `click_link(name)` | Click link by name |
+| `fill_field(label, value)` | Fill textbox by label |
+| `fill_field_by_id(id, value)` | Fill field by ID |
+| `select_option(label, value)` | Select dropdown option |
+| `check_checkbox(label)` | Check checkbox |
+| `assert_visible(text)` | Assert text is visible |
+| `assert_url_contains(path)` | Assert URL contains path |
+| `screenshot(name)` | Take screenshot |
+| `get_page_content()` | Get page HTML |
+
+### Extending Page Objects
+
+Create custom Page Objects for your specific models:
+
+```python
+from wagtail_scenario_test.page_objects import SnippetAdminPage
+
+class CategoryAdmin(SnippetAdminPage):
+    """Page Object for Category snippet."""
 
     def __init__(self, page, base_url):
         super().__init__(
-            page,
-            base_url,
-            app_name="wagtail_reusable_blocks",
-            model_name="reusableblock",
+            page, base_url,
+            app_name="blog",
+            model_name="category",
         )
 
-    def add_html_content(self, html: str):
-        """Add HTML content to the block."""
-        self.click_button("Insert a block")
-        self.click_button("HTML")
-        self.page.locator("textarea").fill(html)
+    def create_with_color(self, name: str, color: str):
+        """Create category with color field."""
+        self.go_to_add()
+        self.page.locator("#id_name").fill(name)
+        self.page.locator("#id_color").fill(color)
+        self.save()
 ```
 
 ## Factory Support
 
-Base factories for test data:
-
 ```python
-from wagtail_scenario_test.utils import WagtailSuperUserFactory
+from wagtail_scenario_test.utils import WagtailUserFactory, WagtailSuperUserFactory
 
-# Create admin user
+# Create regular user
+user = WagtailUserFactory()
+
+# Create superuser
 admin = WagtailSuperUserFactory()
 
-# Custom factory
-class MySnippetFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = MySnippet
-
-    name = factory.Sequence(lambda n: f"Snippet {n}")
+# Custom attributes
+admin = WagtailSuperUserFactory(username="custom_admin")
 ```
 
 ## Best Practices
 
-1. **Use Page Objects**: Don't interact with Playwright directly in tests
-2. **Create via UI**: For editing tests, create data through the admin UI to avoid transaction isolation issues
-3. **Use `transaction=True`**: Required for E2E tests with live_server
-4. **Add waits**: Use `wait_for_navigation()` after actions that trigger page loads
-5. **Take screenshots on failure**: Use `--screenshot=on` for debugging
+### 1. Use the Facade
+
+Prefer `WagtailAdmin` facade over direct Page Object usage:
+
+```python
+# Good
+admin = WagtailAdmin(page, url)
+admin.snippet("myapp.mymodel").create(name="Test")
+
+# Avoid (unless extending)
+snippet = SnippetAdminPage(page, url, app_name="myapp", model_name="mymodel")
+```
+
+### 2. Mark E2E Tests
+
+Always mark E2E tests for selective running:
+
+```python
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+def test_something(authenticated_page, server_url):
+    ...
+```
+
+### 3. Use Headed Mode for Debugging
+
+```bash
+# See what's happening
+pytest tests/ -m e2e --headed --slowmo=500
+
+# Pause on failure
+pytest tests/ -m e2e --headed -x
+```
+
+### 4. Create Data via UI
+
+For editing tests, create data through the UI to avoid transaction issues:
+
+```python
+def test_edit_snippet(authenticated_page, server_url):
+    admin = WagtailAdmin(authenticated_page, server_url)
+    snippet = admin.snippet("myapp.mymodel")
+
+    # Create first, then edit
+    snippet.create(name="Original Name")
+    snippet.click_item_in_list("Original Name")
+
+    # Edit
+    snippet.page.locator("#id_name").fill("Updated Name")
+    snippet.save()
+    snippet.assert_success_message()
+```
 
 ## Requirements
 
