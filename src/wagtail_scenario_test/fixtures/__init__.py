@@ -175,6 +175,29 @@ def authenticated_page(
     return page
 
 
+def pytest_addoption(parser):
+    """Add custom command-line options."""
+    group = parser.getgroup("wagtail-scenario-test")
+    group.addoption(
+        "--gif",
+        action="store_true",
+        default=False,
+        help="Convert recorded videos to GIF format after tests (requires ffmpeg)",
+    )
+    group.addoption(
+        "--gif-fps",
+        type=int,
+        default=10,
+        help="Frames per second for GIF conversion (default: 10)",
+    )
+    group.addoption(
+        "--gif-width",
+        type=int,
+        default=800,
+        help="Width in pixels for GIF conversion (default: 800)",
+    )
+
+
 def pytest_configure(config):
     """Register custom markers for E2E tests."""
     config.addinivalue_line(
@@ -185,3 +208,43 @@ def pytest_configure(config):
         "markers",
         "slow: mark test as slow-running",
     )
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Convert videos to GIFs after test session if --gif flag is set."""
+    if not session.config.getoption("--gif", default=False):
+        return
+
+    from pathlib import Path
+
+    from wagtail_scenario_test.utils.video import (
+        convert_all_videos_to_gif,
+        is_ffmpeg_available,
+    )
+
+    if not is_ffmpeg_available():
+        print("\n⚠️  ffmpeg not found - skipping GIF conversion")
+        print("   Install ffmpeg to enable automatic GIF conversion")
+        return
+
+    # Look for test-results directory (pytest-playwright default)
+    results_dir = Path("test-results")
+    if not results_dir.exists():
+        return
+
+    fps = session.config.getoption("--gif-fps", default=10)
+    width = session.config.getoption("--gif-width", default=800)
+
+    print(f"\n🎬 Converting videos to GIF (fps={fps}, width={width})...")
+
+    gifs = convert_all_videos_to_gif(
+        results_dir,
+        fps=fps,
+        width=width,
+        delete_originals=False,
+    )
+
+    if gifs:
+        print(f"✅ Created {len(gifs)} GIF(s):")
+        for gif in gifs:
+            print(f"   - {gif}")

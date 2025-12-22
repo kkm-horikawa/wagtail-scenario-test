@@ -234,6 +234,62 @@ admin = WagtailSuperUserFactory()
 admin = WagtailSuperUserFactory(username="custom_admin")
 ```
 
+## Video Recording & GIF Conversion
+
+Record test videos using pytest-playwright's built-in `--video` option and automatically convert them to GIF format for documentation and debugging.
+
+### Record Videos
+
+```bash
+# Record videos for failed tests only
+pytest tests/ -m e2e --video=retain-on-failure
+
+# Record all test videos
+pytest tests/ -m e2e --video=on
+
+# Videos are saved to test-results/ directory
+```
+
+### Convert Videos to GIF
+
+Use the `--gif` option to automatically convert recorded videos to GIF format:
+
+```bash
+# Record and convert to GIF
+pytest tests/ -m e2e --video=on --gif
+
+# Customize GIF quality
+pytest tests/ -m e2e --video=on --gif --gif-fps=15 --gif-width=1024
+```
+
+**GIF Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--gif` | off | Enable automatic GIF conversion |
+| `--gif-fps` | 10 | Frames per second (lower = smaller file) |
+| `--gif-width` | 800 | Width in pixels (height auto-scaled) |
+
+**Requirements:** ffmpeg must be installed for GIF conversion.
+
+```bash
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+apt-get install ffmpeg
+```
+
+### Programmatic Conversion
+
+```python
+from wagtail_scenario_test.utils import convert_video_to_gif, is_ffmpeg_available
+
+if is_ffmpeg_available():
+    gif_path = convert_video_to_gif("test-results/video.webm")
+    print(f"Created: {gif_path}")
+```
+
 ## Best Practices
 
 ### 1. Use the Facade
