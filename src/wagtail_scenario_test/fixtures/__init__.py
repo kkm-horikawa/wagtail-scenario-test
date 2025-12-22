@@ -37,7 +37,7 @@ def server_url(live_server) -> str:
     Returns:
         str: The server URL (e.g., "http://localhost:8000")
     """
-    return live_server.url
+    return str(live_server.url)
 
 
 @pytest.fixture
@@ -67,7 +67,6 @@ def wagtail_site(db):
         Site: The Wagtail Site instance
     """
     from django.conf import settings
-
     from wagtail.models import Locale, Page, Site
 
     # Get the language code that Wagtail will use for the default locale
