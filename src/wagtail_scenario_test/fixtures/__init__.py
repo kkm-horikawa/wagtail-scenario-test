@@ -21,6 +21,7 @@ Usage:
 """
 
 import os
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -188,7 +189,8 @@ def storage_state_path(tmp_path_factory) -> Path:
     Returns:
         Path: Path to the storage state JSON file
     """
-    return tmp_path_factory.mktemp("playwright") / "storage_state.json"
+    base_path: Path = tmp_path_factory.mktemp("playwright")
+    return base_path / "storage_state.json"
 
 
 @pytest.fixture(scope="session")
@@ -248,7 +250,7 @@ def _authenticated_storage_state(
 def authenticated_browser_context(
     browser,
     _authenticated_storage_state: Path,
-) -> BrowserContext:
+) -> Generator[BrowserContext, None, None]:
     """
     Return a browser context with pre-authenticated state.
 
@@ -269,7 +271,7 @@ def authenticated_browser_context(
 @pytest.fixture
 def authenticated_page_fast(
     authenticated_browser_context: BrowserContext,
-) -> Page:
+) -> Generator[Page, None, None]:
     """
     Return a Playwright page with pre-authenticated state (faster).
 
