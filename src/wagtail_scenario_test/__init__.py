@@ -5,7 +5,6 @@ This package provides:
 - Page Object classes for Wagtail admin UI
 - Pytest fixtures for authenticated browser sessions
 - Factory utilities for test data creation
-- BDD support with pytest-bdd (optional)
 
 Usage:
     from wagtail_scenario_test.page_objects import WagtailAdminPage, SnippetAdminPage

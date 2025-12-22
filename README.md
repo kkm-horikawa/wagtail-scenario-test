@@ -7,17 +7,11 @@ E2E scenario testing framework for Wagtail applications.
 - **Page Object Pattern**: Maintainable abstractions for Wagtail admin UI
 - **Pytest Fixtures**: Ready-to-use fixtures for authenticated browser sessions
 - **Factory Support**: Base factories for test data creation
-- **BDD Ready**: Optional pytest-bdd integration for Gherkin scenarios
 
 ## Installation
 
 ```bash
 pip install wagtail-scenario-test
-```
-
-For BDD support:
-```bash
-pip install wagtail-scenario-test[bdd]
 ```
 
 ## Quick Start
@@ -204,27 +198,6 @@ class MySnippetFactory(factory.django.DjangoModelFactory):
         model = MySnippet
 
     name = factory.Sequence(lambda n: f"Snippet {n}")
-```
-
-## BDD Support (Optional)
-
-Install with BDD extras:
-
-```bash
-pip install wagtail-scenario-test[bdd]
-```
-
-Write Gherkin scenarios:
-
-```gherkin
-# features/snippets.feature
-Feature: Snippet Management
-
-  Scenario: Admin creates a new snippet
-    Given I am logged in as admin
-    When I create a snippet named "Header Block"
-    Then I should see a success message
-    And the snippet "Header Block" should exist
 ```
 
 ## Best Practices
