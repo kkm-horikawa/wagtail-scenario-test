@@ -1,16 +1,16 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "wagtail-scenario-test"
-version = "0.1.0"
+dynamic = ["version"]
 description = "E2E scenario testing framework for Wagtail applications"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" },
+    { name = "kkm-horikawa" },
 ]
 keywords = [
     "wagtail",
@@ -18,7 +18,6 @@ keywords = [
     "e2e",
     "playwright",
     "scenario",
-    "bdd",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -50,9 +49,6 @@ dev = [
     "mypy>=1.13",
     "pytest-cov>=6.0",
 ]
-bdd = [
-    "pytest-bdd>=8.0",
-]
 
 [project.urls]
 Homepage = "https://github.com/kkm-horikawa/wagtail-scenario-test"
@@ -62,6 +58,13 @@ Issues = "https://github.com/kkm-horikawa/wagtail-scenario-test/issues"
 
 [project.entry-points.pytest11]
 wagtail_scenario_test = "wagtail_scenario_test.fixtures"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wagtail_scenario_test"]
@@ -83,8 +86,38 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["."]
+addopts = "--strict-markers"
+markers = [
+    "e2e: mark test as end-to-end test (requires browser)",
+    "slow: mark test as slow-running",
+]
+
+[tool.coverage.run]
+source = ["src/wagtail_scenario_test"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+# Coverage is ~66% due to:
+# - Unit tests use mocks (verify API contract, not implementation)
+# - E2E tests exercise real code but only for critical paths
+# - "Missing" lines are method bodies covered by mock assertions
+fail_under = 60
+show_missing = true
 
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
+ignore_missing_imports = true
