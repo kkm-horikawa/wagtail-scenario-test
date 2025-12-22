@@ -46,7 +46,7 @@ jobs:
           attestations: false
 
   publish-pypi:
-    needs: publish-testpypi
+    needs: build
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
