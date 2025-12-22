@@ -79,6 +79,35 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["."]
+addopts = "--strict-markers"
+markers = [
+    "e2e: mark test as end-to-end test (requires browser)",
+    "slow: mark test as slow-running",
+]
+
+[tool.coverage.run]
+source = ["src/wagtail_scenario_test"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+# Coverage is ~66% due to:
+# - Unit tests use mocks (verify API contract, not implementation)
+# - E2E tests exercise real code but only for critical paths
+# - "Missing" lines are method bodies covered by mock assertions
+fail_under = 60
+show_missing = true
 
 [tool.mypy]
 python_version = "3.10"
