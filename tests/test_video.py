@@ -1,10 +1,7 @@
 """Tests for video conversion utilities."""
 
 import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from wagtail_scenario_test.utils.video import (
     convert_all_videos_to_gif,
@@ -86,7 +83,7 @@ class TestConvertVideoToGif:
                 "wagtail_scenario_test.utils.video.is_ffmpeg_available",
                 return_value=True,
             ),
-            patch("subprocess.run") as mock_run,
+            patch("subprocess.run"),
         ):
             custom_output.touch()
             result = convert_video_to_gif(video_file, output_path=custom_output)
@@ -180,7 +177,10 @@ class TestConvertVideoToGif:
                 "wagtail_scenario_test.utils.video.is_ffmpeg_available",
                 return_value=True,
             ),
-            patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ffmpeg", 120)),
+            patch(
+                "subprocess.run",
+                side_effect=subprocess.TimeoutExpired("ffmpeg", 120),
+            ),
         ):
             result = convert_video_to_gif(video_file)
             assert result is None
