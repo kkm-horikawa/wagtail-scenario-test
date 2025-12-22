@@ -7,6 +7,7 @@ for tests. When UI changes, only the Page Object needs to be updated.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from playwright.sync_api import Locator, expect
@@ -285,3 +286,29 @@ class BasePage:
             Visible text content
         """
         return self.page.locator("body").inner_text()
+
+    # =========================================================================
+    # Storage state (authentication persistence)
+    # =========================================================================
+
+    def save_storage_state(self, path: str | Path) -> Path:
+        """
+        Save browser storage state (cookies, localStorage) to a file.
+
+        This allows reusing authentication state across tests,
+        significantly speeding up test execution.
+
+        Args:
+            path: File path to save state to (JSON format)
+
+        Returns:
+            Path to the saved state file
+
+        Example:
+            >>> page.save_storage_state("auth_state.json")
+            >>> # Later, use this state with browser.new_context(storage_state=...)
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.page.context.storage_state(path=str(path))
+        return path

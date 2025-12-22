@@ -351,3 +351,53 @@ class TestBasePageAssertElementVisibility:
         base.assert_element_not_visible(".error-message")
 
         mock_page.locator.assert_called_once_with(".error-message")
+
+
+class TestBasePageStorageState:
+    """Tests for storage state methods."""
+
+    def test_save_storage_state(self, mock_page, test_url, tmp_path):
+        """save_storage_state should save browser state to file."""
+        from unittest.mock import MagicMock
+
+        mock_context = MagicMock()
+        mock_page.context = mock_context
+        base = BasePage(mock_page, test_url)
+        output_path = tmp_path / "state.json"
+
+        result = base.save_storage_state(output_path)
+
+        mock_context.storage_state.assert_called_once_with(path=str(output_path))
+        assert result == output_path
+
+    def test_save_storage_state_creates_parent_dirs(
+        self, mock_page, test_url, tmp_path
+    ):
+        """save_storage_state should create parent directories."""
+        from unittest.mock import MagicMock
+
+        mock_context = MagicMock()
+        mock_page.context = mock_context
+        base = BasePage(mock_page, test_url)
+        output_path = tmp_path / "nested" / "dir" / "state.json"
+
+        base.save_storage_state(output_path)
+
+        assert output_path.parent.exists()
+
+    def test_save_storage_state_accepts_string_path(
+        self, mock_page, test_url, tmp_path
+    ):
+        """save_storage_state should accept string path."""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        mock_context = MagicMock()
+        mock_page.context = mock_context
+        base = BasePage(mock_page, test_url)
+        output_path = str(tmp_path / "state.json")
+
+        result = base.save_storage_state(output_path)
+
+        assert isinstance(result, Path)
+        assert str(result) == output_path

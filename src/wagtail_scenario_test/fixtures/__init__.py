@@ -11,6 +11,8 @@ Available fixtures:
     - admin_credentials: Returns default admin credentials
     - admin_user_e2e: Creates an admin user for E2E testing
     - authenticated_page: Playwright page logged into Wagtail admin
+    - storage_state_path: Path for storing authentication state
+    - authenticated_browser_context: Session-scoped authenticated context
 
 Usage:
     # In your conftest.py, the fixtures are automatically available
@@ -19,9 +21,11 @@ Usage:
 """
 
 import os
+from collections.abc import Generator
+from pathlib import Path
 
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import BrowserContext, Page
 
 # Allow Django ORM in async context (required for Playwright + Django integration)
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "1")
@@ -173,6 +177,121 @@ def authenticated_page(
     page.wait_for_url(f"{server_url}/admin/**")
 
     return page
+
+
+@pytest.fixture(scope="session")
+def storage_state_path(tmp_path_factory) -> Path:
+    """
+    Return path for storing authentication state.
+
+    Override this fixture to use a custom path.
+
+    Returns:
+        Path: Path to the storage state JSON file
+    """
+    base_path: Path = tmp_path_factory.mktemp("playwright")
+    return base_path / "storage_state.json"
+
+
+@pytest.fixture(scope="session")
+def _authenticated_storage_state(
+    browser,
+    live_server,
+    django_db_setup,
+    django_db_blocker,
+    storage_state_path: Path,
+) -> Path:
+    """
+    Create and save authenticated storage state (session-scoped).
+
+    This fixture logs in once per session and saves the browser state,
+    allowing subsequent tests to skip the login process.
+
+    Returns:
+        Path: Path to the saved storage state file
+    """
+    from django.contrib.auth import get_user_model
+
+    # Create admin user in database
+    with django_db_blocker.unblock():
+        User = get_user_model()
+        user, created = User.objects.get_or_create(
+            username="e2e_admin",
+            defaults={
+                "email": "e2e_admin@example.com",
+                "is_staff": True,
+                "is_superuser": True,
+            },
+        )
+        if created:
+            user.set_password("e2e_password_123")
+            user.save()
+
+    # Create context and login
+    context = browser.new_context()
+    page = context.new_page()
+
+    server_url = str(live_server.url)
+    page.goto(f"{server_url}/admin/login/")
+    page.get_by_label("Username").fill("e2e_admin")
+    page.get_by_label("Password").fill("e2e_password_123")
+    page.get_by_role("button", name="Sign in").click()
+    page.wait_for_url(f"{server_url}/admin/**")
+
+    # Save storage state
+    storage_state_path.parent.mkdir(parents=True, exist_ok=True)
+    context.storage_state(path=str(storage_state_path))
+
+    context.close()
+    return storage_state_path
+
+
+@pytest.fixture
+def authenticated_browser_context(
+    browser,
+    _authenticated_storage_state: Path,
+) -> Generator[BrowserContext, None, None]:
+    """
+    Return a browser context with pre-authenticated state.
+
+    This fixture uses saved storage state to skip login,
+    making tests faster when you need multiple pages or contexts.
+
+    Usage:
+        def test_multi_page(authenticated_browser_context, server_url):
+            page1 = authenticated_browser_context.new_page()
+            page2 = authenticated_browser_context.new_page()
+            # Both pages are already logged in
+    """
+    context = browser.new_context(storage_state=str(_authenticated_storage_state))
+    yield context
+    context.close()
+
+
+@pytest.fixture
+def authenticated_page_fast(
+    authenticated_browser_context: BrowserContext,
+) -> Generator[Page, None, None]:
+    """
+    Return a Playwright page with pre-authenticated state (faster).
+
+    This fixture uses saved storage state instead of logging in each time,
+    making it faster than `authenticated_page` for test suites with many tests.
+
+    Note: Requires session-scoped database setup. Use with
+    `@pytest.mark.django_db(transaction=True)` and configure
+    your test to use session-scoped live_server.
+
+    Usage:
+        @pytest.mark.e2e
+        @pytest.mark.django_db(transaction=True)
+        def test_something(authenticated_page_fast, server_url):
+            authenticated_page_fast.goto(f"{server_url}/admin/")
+            # Already logged in via storage state
+    """
+    page = authenticated_browser_context.new_page()
+    yield page
+    page.close()
 
 
 def pytest_addoption(parser):
