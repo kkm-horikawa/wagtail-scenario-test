@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wagtail-scenario-test"
+version = "0.1.0"
+description = "E2E scenario testing framework for Wagtail applications"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" },
+]
+keywords = [
+    "wagtail",
+    "testing",
+    "e2e",
+    "playwright",
+    "scenario",
+    "bdd",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Wagtail",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "wagtail>=5.0",
+    "django>=4.2",
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "pytest-playwright>=0.6.2",
+    "factory-boy>=3.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest-cov>=6.0",
+]
+bdd = [
+    "pytest-bdd>=8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/wagtail-scenario-test"
+Documentation = "https://github.com/yourusername/wagtail-scenario-test#readme"
+Repository = "https://github.com/yourusername/wagtail-scenario-test"
+Issues = "https://github.com/yourusername/wagtail-scenario-test/issues"
+
+[project.entry-points.pytest11]
+wagtail_scenario_test = "wagtail_scenario_test.fixtures"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wagtail_scenario_test"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
