@@ -55,10 +55,10 @@ bdd = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/wagtail-scenario-test"
-Documentation = "https://github.com/yourusername/wagtail-scenario-test#readme"
-Repository = "https://github.com/yourusername/wagtail-scenario-test"
-Issues = "https://github.com/yourusername/wagtail-scenario-test/issues"
+Homepage = "https://github.com/kkm-horikawa/wagtail-scenario-test"
+Documentation = "https://github.com/kkm-horikawa/wagtail-scenario-test#readme"
+Repository = "https://github.com/kkm-horikawa/wagtail-scenario-test"
+Issues = "https://github.com/kkm-horikawa/wagtail-scenario-test/issues"
 
 [project.entry-points.pytest11]
 wagtail_scenario_test = "wagtail_scenario_test.fixtures"
