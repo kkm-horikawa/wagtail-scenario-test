@@ -1270,3 +1270,140 @@ class TestStreamFieldHelperDocumentChooserE2E:
         assert created_page.body[0].block_type == "document"
         assert created_page.body[0].value is not None
         assert created_page.body[0].value.title == test_document.title
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperDeleteBlockE2E:
+    """E2E tests for StreamFieldHelper.delete_block()."""
+
+    def test_delete_block_hides_block(self, authenticated_page, server_url, home_page):
+        """Test that delete_block hides the block."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add two blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("First Heading")
+        sf.add_block("Quote")
+        sf.block(1).fill("A quote")
+
+        # Verify we have 2 blocks
+        assert sf.get_block_count() == 2
+
+        # Delete the second block
+        sf.delete_block(1)
+
+        # Verify the block is marked as deleted
+        assert sf.is_block_deleted(1) is True
+        assert sf.is_block_deleted(0) is False
+
+    def test_delete_first_block(self, authenticated_page, server_url, home_page):
+        """Test deleting the first block."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add two blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("First Heading")
+        sf.add_block("Quote")
+        sf.block(1).fill("A quote")
+
+        # Delete the first block
+        sf.delete_block(0)
+
+        # Verify the first block is deleted, second is not
+        assert sf.is_block_deleted(0) is True
+        assert sf.is_block_deleted(1) is False
+
+    def test_delete_multiple_blocks(self, authenticated_page, server_url, home_page):
+        """Test deleting multiple blocks."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add three blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("Heading 1")
+        sf.add_block("Quote")
+        sf.block(1).fill("Quote text")
+        sf.add_block("Heading")
+        sf.block(2).fill("Heading 2")
+
+        # Delete first and last blocks
+        sf.delete_block(0)
+        sf.delete_block(2)
+
+        # Verify deletion state
+        assert sf.is_block_deleted(0) is True
+        assert sf.is_block_deleted(1) is False
+        assert sf.is_block_deleted(2) is True
+
+    def test_save_page_after_delete(self, authenticated_page, server_url, home_page):
+        """Test saving a page after deleting a block."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Page After Delete")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add two blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("Keep This")
+        sf.add_block("Quote")
+        sf.block(1).fill("Delete This")
+
+        # Delete the second block
+        sf.delete_block(1)
+
+        # Save the page
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("page-after-delete")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify only the first block was saved
+        from tests.testapp.models import StreamFieldPage
+
+        created_page = StreamFieldPage.objects.get(title="Page After Delete")
+        assert len(created_page.body) == 1
+        assert created_page.body[0].block_type == "heading"
+        assert created_page.body[0].value == "Keep This"
+
+    def test_delete_invalid_index_raises_error(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test that deleting an invalid index raises ValueError."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Try to delete non-existent block
+        import pytest
+
+        with pytest.raises(ValueError, match="Block at index 5 not found"):
+            sf.delete_block(5)
