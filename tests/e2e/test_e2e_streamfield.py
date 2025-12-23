@@ -802,3 +802,368 @@ class TestStreamFieldHelperComplexScenarioE2E:
         assert len(created_page.body[5].value["cards"]) == 2
         assert created_page.body[5].value["cards"][0]["title"] == "John Doe"
         assert created_page.body[5].value["cards"][1]["title"] == "Jane Doe"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperImageChooserE2E:
+    """E2E tests for ImageChooserBlock with click_chooser and select_from_chooser."""
+
+    def test_click_chooser_opens_modal(
+        self, authenticated_page, server_url, home_page, test_image
+    ):
+        """Test that click_chooser opens the image chooser modal."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Image Chooser Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add standalone Image block
+        index = sf.add_block("Image")
+
+        # Click chooser button
+        sf.block(index).click_chooser()
+
+        # Verify modal is open by checking for modal elements
+        # Wagtail's image chooser modal has specific UI elements
+        modal = authenticated_page.locator("[data-chooser-modal], .modal")
+        assert modal.count() > 0, "Image chooser modal should be open"
+
+    def test_select_image_from_chooser(
+        self, authenticated_page, server_url, home_page, test_image
+    ):
+        """Test selecting an image from the chooser modal."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Select Image Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add standalone Image block
+        index = sf.add_block("Image")
+
+        # Click chooser and select image
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(test_image.title)
+
+        # Wait for chooser to close
+        authenticated_page.wait_for_timeout(500)
+
+        # Modal should be closed (check using Bootstrap modal selector)
+        modal = authenticated_page.locator(".modal.fade.in")
+        assert modal.count() == 0, "Modal should be closed after selection"
+
+    def test_image_in_struct_block(
+        self, authenticated_page, server_url, home_page, test_image
+    ):
+        """Test ImageChooserBlock inside a StructBlock (HeroBlock)."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Hero With Image Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Hero Section block (has optional image field)
+        index = sf.add_block("Hero Section")
+
+        # Fill text fields
+        sf.block(index).struct("title").fill("Welcome Hero")
+        sf.block(index).struct("subtitle").fill("With an image")
+
+        # Select image using fluent API
+        sf.block(index).struct("image").click_chooser()
+        sf.select_from_chooser(test_image.title)
+
+        # Wait for selection
+        authenticated_page.wait_for_timeout(500)
+
+        # Save the page
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("hero-with-image")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify the image was saved
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Hero With Image Page")
+        assert created_page.body[0].block_type == "hero"
+        assert created_page.body[0].value["title"] == "Welcome Hero"
+        # Image should be set
+        assert created_page.body[0].value["image"] is not None
+        assert created_page.body[0].value["image"].title == test_image.title
+
+    def test_save_page_with_standalone_image(
+        self, authenticated_page, server_url, home_page, test_image
+    ):
+        """Test saving a page with a standalone ImageChooserBlock."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Standalone Image Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add standalone Image block
+        index = sf.add_block("Image")
+
+        # Select image
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(test_image.title)
+
+        # Wait for selection
+        authenticated_page.wait_for_timeout(500)
+
+        # Save the page
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("standalone-image")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify the image was saved
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(
+            title="Standalone Image Page"
+        )
+        assert created_page.body[0].block_type == "image"
+        assert created_page.body[0].value is not None
+        assert created_page.body[0].value.title == test_image.title
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperSnippetChooserE2E:
+    """E2E tests for SnippetChooserBlock with click_chooser and select_from_chooser."""
+
+    def test_click_chooser_opens_snippet_modal(
+        self, authenticated_page, server_url, home_page, test_snippet
+    ):
+        """Test that click_chooser opens the snippet chooser modal."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Snippet Chooser Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Snippet block
+        index = sf.add_block("Snippet")
+
+        # Click chooser button
+        sf.block(index).click_chooser()
+
+        # Verify modal is open
+        modal = authenticated_page.locator(".modal")
+        assert modal.count() > 0, "Snippet chooser modal should be open"
+
+    def test_select_snippet_from_chooser(
+        self, authenticated_page, server_url, home_page, test_snippet
+    ):
+        """Test selecting a snippet from the chooser modal."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Select Snippet Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Snippet block
+        index = sf.add_block("Snippet")
+
+        # Click chooser and select snippet
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(test_snippet.name)
+
+        # Wait for chooser to close
+        authenticated_page.wait_for_timeout(500)
+
+        # Modal should be closed
+        modal = authenticated_page.locator(".modal.fade.in")
+        assert modal.count() == 0, "Modal should be closed after selection"
+
+    def test_save_page_with_snippet(
+        self, authenticated_page, server_url, home_page, test_snippet
+    ):
+        """Test saving a page with a SnippetChooserBlock."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Page With Snippet")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Snippet block
+        index = sf.add_block("Snippet")
+
+        # Select snippet
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(test_snippet.name)
+
+        authenticated_page.wait_for_timeout(500)
+
+        # Save the page
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("page-with-snippet")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify the snippet was saved
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Page With Snippet")
+        assert created_page.body[0].block_type == "snippet"
+        assert created_page.body[0].value is not None
+        assert created_page.body[0].value.name == test_snippet.name
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperPageChooserE2E:
+    """E2E tests for PageChooserBlock with click_chooser and select_from_chooser."""
+
+    def test_click_chooser_opens_page_modal(
+        self, authenticated_page, server_url, home_page, test_related_page
+    ):
+        """Test that click_chooser opens the page chooser modal."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Page Chooser Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Related page block
+        index = sf.add_block("Related page")
+
+        # Click chooser button
+        sf.block(index).click_chooser()
+
+        # Verify modal is open
+        modal = authenticated_page.locator(".modal")
+        assert modal.count() > 0, "Page chooser modal should be open"
+
+    def test_select_page_from_chooser(self, authenticated_page, server_url, home_page):
+        """Test selecting a page from the chooser modal.
+
+        Note: PageChooser shows a hierarchical view. This test selects the
+        home page which is directly visible in the chooser without navigation.
+        """
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Select Page Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Related page block
+        index = sf.add_block("Related page")
+
+        # Click chooser and select the home page (directly visible)
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(home_page.title)
+
+        # Wait for chooser to close
+        authenticated_page.wait_for_timeout(500)
+
+        # Modal should be closed
+        modal = authenticated_page.locator(".modal.fade.in")
+        assert modal.count() == 0, "Modal should be closed after selection"
+
+    def test_save_page_with_related_page(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test saving a page with a PageChooserBlock."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Page With Related Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Related page block
+        index = sf.add_block("Related page")
+
+        # Select the home page (directly visible in chooser)
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(home_page.title)
+
+        authenticated_page.wait_for_timeout(500)
+
+        # Save the page
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("page-with-related-page")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify the related page was saved
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(
+            title="Page With Related Page"
+        )
+        assert created_page.body[0].block_type == "related_page"
+        assert created_page.body[0].value is not None
+        assert created_page.body[0].value.title == home_page.title

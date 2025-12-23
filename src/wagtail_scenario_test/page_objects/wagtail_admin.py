@@ -1220,6 +1220,7 @@ class StreamFieldHelper:
         """
         Select an item from an open chooser modal by title.
 
+        Supports ImageChooser, SnippetChooser, and PageChooser modals.
         Call this after BlockPath.click_chooser() to select a specific item.
 
         Args:
@@ -1229,18 +1230,42 @@ class StreamFieldHelper:
             sf.block(0).struct("image").click_chooser()
             sf.select_from_chooser("My Image")
         """
-        modal = self.page.locator("[data-chooser-modal]")
+        # Wagtail uses Bootstrap modal (.modal) for chooser dialogs
+        modal = self.page.locator(".modal")
         modal.wait_for(state="visible")
 
-        item = modal.locator(f"[data-title='{title}']").first
-        if item.count() > 0:
-            item.click()
-        else:
-            link = modal.get_by_role("link", name=title).first
-            if link.count() > 0:
-                link.click()
+        # Try different chooser patterns in order:
 
-        self.page.wait_for_timeout(300)
+        # 1. ImageChooser: [data-chooser-modal-choice][title='...']
+        selector = f"[data-chooser-modal-choice][title='{title}']"
+        image_item = modal.locator(selector).first
+        if image_item.count() > 0:
+            image_item.click()
+            self.page.wait_for_timeout(300)
+            return
+
+        # 2. PageChooser: a.choose-page[data-title='...']
+        page_item = modal.locator(f"a.choose-page[data-title='{title}']").first
+        if page_item.count() > 0:
+            page_item.click()
+            self.page.wait_for_timeout(300)
+            return
+
+        # 3. SnippetChooser: [data-chooser-modal-choice] with text content
+        snippet_items = modal.locator("[data-chooser-modal-choice]")
+        for i in range(snippet_items.count()):
+            item = snippet_items.nth(i)
+            text = item.text_content()
+            if text and title in text.strip():
+                item.click()
+                self.page.wait_for_timeout(300)
+                return
+
+        # 4. Fallback: try finding by link role with exact name
+        link = modal.get_by_role("link", name=title, exact=True).first
+        if link.count() > 0:
+            link.click()
+            self.page.wait_for_timeout(300)
 
     # Legacy methods for backward compatibility
 

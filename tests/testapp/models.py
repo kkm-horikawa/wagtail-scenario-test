@@ -5,6 +5,7 @@ from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import (
     CharBlock,
     ListBlock,
+    PageChooserBlock,
     RichTextBlock,
     StructBlock,
     TextBlock,
@@ -13,6 +14,7 @@ from wagtail.blocks import (
 from wagtail.fields import StreamField
 from wagtail.images.blocks import ImageChooserBlock
 from wagtail.models import Page
+from wagtail.snippets.blocks import SnippetChooserBlock
 from wagtail.snippets.models import register_snippet
 
 
@@ -128,6 +130,10 @@ class AdvancedStreamFieldPage(Page):
             ("items", ListBlock(CharBlock(label="Item"))),
             # ImageChooserBlock
             ("image", ImageChooserBlock()),
+            # SnippetChooserBlock
+            ("snippet", SnippetChooserBlock("testapp.TestSnippet")),
+            # PageChooserBlock
+            ("related_page", PageChooserBlock()),
             # Deep nesting: StructBlock > ListBlock > StructBlock
             ("section", SectionBlock()),
         ],
