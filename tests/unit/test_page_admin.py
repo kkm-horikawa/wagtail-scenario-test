@@ -54,6 +54,14 @@ class TestPageAdminPageUrls:
 
         assert url == "/admin/pages/42/edit/"
 
+    def test_delete_page_url(self, mock_page, test_url):
+        """delete_page_url should return correct URL."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        url = page_admin.delete_page_url(page_id=42)
+
+        assert url == "/admin/pages/42/delete/"
+
 
 class TestPageAdminPageEditPage:
     """Tests for PageAdminPage edit_page method."""
@@ -74,6 +82,45 @@ class TestPageAdminPageEditPage:
 
         # Should call wait_for_load_state (from wait_for_navigation)
         mock_page.wait_for_load_state.assert_called()
+
+
+class TestPageAdminPageDeletePage:
+    """Tests for PageAdminPage delete_page method."""
+
+    def test_delete_page_with_confirm(self, mock_page, test_url):
+        """delete_page should navigate, open dropdown, click Delete, and confirm."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.delete_page(page_id=5)
+
+        # Should navigate to edit page first
+        mock_page.goto.assert_called_with(f"{test_url}/admin/pages/5/edit/")
+
+        # Should open "Actions" dropdown (exact match)
+        mock_page.get_by_role.assert_any_call("button", name="Actions", exact=True)
+
+        # Should click Delete link and Yes, delete button
+        mock_page.get_by_role.assert_any_call("link", name="Delete", exact=True)
+        mock_page.get_by_role.assert_any_call("button", name="Yes, delete")
+
+    def test_delete_page_without_confirm(self, mock_page, test_url):
+        """delete_page with confirm=False should not click Yes, delete."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.delete_page(page_id=5, confirm=False)
+
+        # Should navigate to edit page
+        mock_page.goto.assert_called_with(f"{test_url}/admin/pages/5/edit/")
+
+        # Should open "Actions" dropdown (exact match) and click Delete link
+        mock_page.get_by_role.assert_any_call("button", name="Actions", exact=True)
+        mock_page.get_by_role.assert_any_call("link", name="Delete", exact=True)
+
+        # Should NOT call Yes, delete
+        for call in mock_page.get_by_role.call_args_list:
+            args, kwargs = call
+            if args[0] == "button" and kwargs.get("name") == "Yes, delete":
+                raise AssertionError("Yes, delete should not be clicked")
 
 
 class TestPageAdminPageCreateChildPage:

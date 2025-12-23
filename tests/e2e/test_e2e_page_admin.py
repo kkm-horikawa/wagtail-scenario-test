@@ -177,3 +177,49 @@ class TestPageAdminEditPageE2E:
         url = page_admin.edit_page_url(page_id=42)
 
         assert url == "/admin/pages/42/edit/"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestPageAdminDeletePageE2E:
+    """E2E tests for PageAdminPage.delete_page()."""
+
+    def test_delete_page_removes_page(self, authenticated_page, server_url, home_page):
+        """Test deleting a page through the admin UI.
+
+        This tests the Wagtail 7+ UI where Delete is a link in the
+        header dropdown menu, not a direct button.
+        """
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # First create a page to delete
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Delete",
+            slug="page-to-delete",
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Delete")
+        page_id = created_page.id
+
+        # Delete the page
+        page_admin.delete_page(page_id)
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify the page no longer exists
+        assert not TestPage.objects.filter(id=page_id).exists()
+
+    def test_delete_page_url(self, authenticated_page, server_url):
+        """Test that delete_page_url returns correct URL."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.delete_page_url(page_id=42)
+
+        assert url == "/admin/pages/42/delete/"
