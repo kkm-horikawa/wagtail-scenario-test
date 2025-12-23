@@ -511,6 +511,15 @@ class PageAdminPage(WagtailAdminPage):
         """
         return f"/admin/pages/{page_id}/edit/"
 
+    def delete_page_url(self, page_id: int) -> str:
+        """
+        Return the URL for deleting a page.
+
+        Args:
+            page_id: The page ID to delete
+        """
+        return f"/admin/pages/{page_id}/delete/"
+
     # =========================================================================
     # Page Navigation
     # =========================================================================
@@ -526,6 +535,43 @@ class PageAdminPage(WagtailAdminPage):
             page_admin.edit_page(5)  # Navigate to edit page with ID 5
         """
         self.goto(self.edit_page_url(page_id))
+        self.wait_for_navigation()
+
+    # =========================================================================
+    # Page Deletion
+    # =========================================================================
+
+    def delete_page(self, page_id: int, confirm: bool = True) -> None:
+        """
+        Delete a page.
+
+        In Wagtail 7+, the Delete action is a link in the header "More" dropdown
+        menu on the edit page. This method navigates to the edit page, opens
+        the dropdown, and clicks the Delete link.
+
+        Args:
+            page_id: The page ID to delete
+            confirm: Whether to confirm the deletion (default True)
+
+        Example:
+            page_admin.delete_page(5)  # Delete page with ID 5
+            page_admin.delete_page(5, confirm=False)  # Go to confirm page only
+        """
+        # Navigate to the edit page first (delete is in edit page dropdown)
+        self.edit_page(page_id)
+
+        # Open the "Actions" dropdown which contains Delete, Copy, Move, etc.
+        # This is labeled "Actions" with an aria-label, and shows as "… Actions"
+        # Use exact=True to avoid matching "More actions" button
+        dropdown_toggle = self.page.get_by_role("button", name="Actions", exact=True)
+        dropdown_toggle.click()
+
+        # Click the Delete link (not button) in the dropdown
+        # Use exact=True to avoid matching items like "Delete Test Page"
+        self.page.get_by_role("link", name="Delete", exact=True).click()
+
+        if confirm:
+            self.page.get_by_role("button", name="Yes, delete").click()
         self.wait_for_navigation()
 
     # =========================================================================
