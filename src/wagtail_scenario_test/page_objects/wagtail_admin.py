@@ -545,7 +545,7 @@ class PageAdminPage(WagtailAdminPage):
         """
         Delete a page.
 
-        In Wagtail 7+, the Delete action is a link in the header "More" dropdown
+        In Wagtail 7+, the Delete action is a link in the "Actions" dropdown
         menu on the edit page. This method navigates to the edit page, opens
         the dropdown, and clicks the Delete link.
 
