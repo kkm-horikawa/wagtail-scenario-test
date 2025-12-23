@@ -9,7 +9,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('testapp', '0001_initial'),
-        ('wagtailcore', '0096_referenceindex_referenceindex_source_object_and_more'),
     ]
 
     operations = [
