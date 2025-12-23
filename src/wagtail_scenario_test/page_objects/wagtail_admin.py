@@ -611,6 +611,46 @@ class PageAdminPage(WagtailAdminPage):
         self.page.get_by_role("button", name="Publish").click()
         self.wait_for_navigation()
 
+    def unpublish(self, page_id: int | None = None, confirm: bool = True) -> None:
+        """
+        Unpublish a live page.
+
+        If page_id is provided, navigates to the edit page first.
+        Otherwise, assumes we are already on the page edit screen.
+
+        In Wagtail, the Unpublish action is in the "Actions" dropdown menu
+        at the top of the page editor (same dropdown as Delete, Copy, Move).
+
+        Args:
+            page_id: Optional page ID to unpublish. If provided, navigates to
+                the edit page first. If None, assumes already on edit page.
+            confirm: Whether to confirm the unpublish action (default True)
+
+        Example:
+            # Unpublish a specific page by ID
+            page_admin.unpublish(page_id=5)
+
+            # Or navigate to edit page first, then unpublish
+            page_admin.edit_page(5)
+            page_admin.unpublish()
+
+            # Go to confirmation page without confirming
+            page_admin.unpublish(page_id=5, confirm=False)
+        """
+        if page_id is not None:
+            self.edit_page(page_id)
+
+        # Unpublish is in the "Actions" dropdown (same as Delete, Copy, Move)
+        # This is different from the "More actions" dropdown which has Publish
+        self.page.get_by_role("button", name="Actions", exact=True).click()
+
+        # Click the Unpublish link in the dropdown
+        self.page.get_by_role("link", name="Unpublish", exact=True).click()
+
+        if confirm:
+            self.page.get_by_role("button", name="Yes, unpublish").click()
+        self.wait_for_navigation()
+
     # =========================================================================
     # Page Creation
     # =========================================================================
