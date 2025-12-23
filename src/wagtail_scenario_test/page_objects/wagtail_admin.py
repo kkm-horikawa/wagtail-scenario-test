@@ -470,3 +470,131 @@ class PageAdminPage(WagtailAdminPage):
         self.page.get_by_role("button", name="Pages").click()
         # Wait for the explorer panel to open (uses role="dialog" and aria-label)
         self.page.locator(".c-page-explorer").wait_for(state="visible", timeout=10000)
+
+    # =========================================================================
+    # URLs
+    # =========================================================================
+
+    def add_child_page_url(
+        self, parent_page_id: int, app_name: str, model_name: str
+    ) -> str:
+        """
+        Return the URL for adding a child page.
+
+        Args:
+            parent_page_id: Parent page ID
+            app_name: Django app name (e.g., "testapp")
+            model_name: Model name in lowercase (e.g., "testpage")
+        """
+        return f"/admin/pages/add/{app_name}/{model_name}/{parent_page_id}/"
+
+    # =========================================================================
+    # Page Creation
+    # =========================================================================
+
+    def create_child_page(
+        self,
+        parent_page_id: int,
+        page_type: str,
+        *,
+        title: str,
+        slug: str | None = None,
+        save: bool = True,
+        publish: bool = False,
+        **fields: str,
+    ) -> None:
+        """
+        Create a child page under a parent.
+
+        Navigates directly to the page creation form and fills in the
+        specified fields.
+
+        Args:
+            parent_page_id: Parent page ID
+            page_type: Page type in "app_name.ModelName" format
+                (e.g., "testapp.TestPage")
+            title: Page title (required by Wagtail)
+            slug: Page slug (required by Wagtail). If not provided,
+                a slug will be generated from the title.
+            save: Whether to save the page (default True)
+            publish: Whether to publish instead of saving as draft
+                (only applies if save=True)
+            **fields: Additional fields to fill (field_id=value).
+                Field IDs should be without the "#" prefix.
+
+        Example:
+            # Create a simple page as draft
+            page_admin.create_child_page(
+                parent_page_id=1,
+                page_type="testapp.TestPage",
+                title="My New Page",
+                slug="my-new-page",
+            )
+
+            # Create and publish with additional fields
+            page_admin.create_child_page(
+                parent_page_id=1,
+                page_type="testapp.TestPage",
+                title="My Published Page",
+                slug="my-published-page",
+                publish=True,
+                id_subtitle="A subtitle",
+                id_body="Page body content",
+            )
+        """
+        # Parse page_type to get app_name and model_name
+        app_name, model_name = page_type.split(".")
+        model_name = model_name.lower()
+
+        # Navigate to the add page form
+        url = self.add_child_page_url(parent_page_id, app_name, model_name)
+        self.goto(url)
+        self.wait_for_navigation()
+
+        # Fill the title field (required)
+        title_input = self.page.locator("#id_title")
+        title_input.wait_for(state="visible", timeout=10000)
+        title_input.fill(title)
+
+        # Fill additional fields in Content tab
+        for field_id, value in fields.items():
+            selector = field_id if field_id.startswith("#") else f"#{field_id}"
+            self.page.locator(selector).fill(value)
+
+        # Fill slug in Promote tab (required by Wagtail)
+        actual_slug = slug if slug else self._generate_slug(title)
+        self.page.get_by_role("tab", name="Promote").click()
+        slug_input = self.page.locator("#id_slug")
+        slug_input.wait_for(state="visible", timeout=10000)
+        slug_input.fill(actual_slug)
+
+        if save:
+            if publish:
+                # Publish is in a dropdown menu - expand it first
+                dropdown_toggle = (
+                    "[data-controller='w-dropdown'] "
+                    "button[data-w-dropdown-target='toggle']"
+                )
+                self.page.locator(dropdown_toggle).click()
+                self.page.get_by_role("button", name="Publish").click()
+            else:
+                self.page.get_by_role("button", name="Save draft").click()
+            self.wait_for_navigation()
+
+    def _generate_slug(self, title: str) -> str:
+        """
+        Generate a slug from a title.
+
+        Args:
+            title: Page title
+
+        Returns:
+            URL-friendly slug
+        """
+        import re
+
+        slug = title.lower()
+        slug = re.sub(r"[^\w\s-]", "", slug)
+        slug = re.sub(r"[\s_]+", "-", slug)
+        slug = re.sub(r"-+", "-", slug)
+        return slug.strip("-")

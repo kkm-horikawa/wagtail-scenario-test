@@ -1,8 +1,30 @@
 """E2E tests for PageAdminPage."""
 
 import pytest
+from wagtail.models import Page
 
 from wagtail_scenario_test import PageAdminPage
+
+
+@pytest.fixture
+def home_page(db, wagtail_site):
+    """Get or create a home page under the root page."""
+    root = Page.objects.get(depth=1)
+    # Check if a page already exists under root
+    home = root.get_children().first()
+    if home is None:
+        # Create a simple home page
+        home = Page(title="Home", slug="home")
+        root.add_child(instance=home)
+    # Make sure the TestPage model is allowed as a child
+    # by returning a page that can have TestPage children
+    return home
+
+
+@pytest.fixture
+def root_page(db, wagtail_site):
+    """Get the root page for creating test pages."""
+    return Page.objects.get(depth=1)
 
 
 @pytest.mark.e2e
@@ -20,3 +42,94 @@ class TestPageAdminE2E:
         # The explorer panel should be visible
         explorer = authenticated_page.locator(".c-page-explorer")
         assert explorer.is_visible()
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestPageAdminCreateChildPageE2E:
+    """E2E tests for PageAdminPage.create_child_page()."""
+
+    def test_create_child_page_as_draft(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test creating a child page as draft."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="E2E Test Page Draft",
+            slug="e2e-test-page-draft",
+        )
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify page was created in database
+        from tests.testapp.models import TestPage
+
+        assert TestPage.objects.filter(title="E2E Test Page Draft").exists()
+
+        # The page should not be live (draft)
+        created_page = TestPage.objects.get(title="E2E Test Page Draft")
+        assert not created_page.live
+
+    def test_create_child_page_and_publish(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test creating a child page and publishing it."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="E2E Test Page Published",
+            slug="e2e-test-page-published",
+            publish=True,
+        )
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify page was created and is live
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="E2E Test Page Published")
+        assert created_page.live
+
+    def test_create_child_page_with_additional_fields(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test creating a child page with subtitle and body fields."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="E2E Test Page With Fields",
+            slug="e2e-test-page-with-fields",
+            id_subtitle="Test Subtitle",
+            id_body="Test body content",
+        )
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify fields were saved
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="E2E Test Page With Fields")
+        assert created_page.subtitle == "Test Subtitle"
+        assert created_page.body == "Test body content"
+
+    def test_add_child_page_url(self, authenticated_page, server_url):
+        """Test that add_child_page_url returns correct URL."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            parent_page_id=1,
+            app_name="testapp",
+            model_name="testpage",
+        )
+
+        assert url == "/admin/pages/add/testapp/testpage/1/"
