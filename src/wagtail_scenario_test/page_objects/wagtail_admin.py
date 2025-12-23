@@ -518,6 +518,18 @@ class PageAdminPage(WagtailAdminPage):
         """
         return f"/admin/pages/{page_id}/delete/"
 
+    def preview_url(self, page_id: int) -> str:
+        """
+        Return the preview URL for a page.
+
+        This returns the URL for viewing a page preview within the Wagtail admin.
+        The preview is displayed in an iframe on the edit page.
+
+        Args:
+            page_id: The page ID to preview
+        """
+        return f"/admin/pages/{page_id}/edit/preview/"
+
     # =========================================================================
     # Page Navigation
     # =========================================================================
