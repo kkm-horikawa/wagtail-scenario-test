@@ -126,3 +126,30 @@ class TestSnippetE2E:
 
         # Verify URL contains the add path
         assert snippet.add_url in authenticated_page.url
+
+    def test_delete_snippet(self, authenticated_page, server_url):
+        """Test deleting a snippet through the admin UI.
+
+        This tests the Wagtail 7+ UI where Delete is a link in the
+        header dropdown menu, not a direct button.
+        """
+        admin = WagtailAdmin(authenticated_page, server_url)
+        snippet = admin.snippet("testapp.testsnippet")
+
+        # Create a snippet first
+        snippet.create(name="Delete Test Snippet")
+        snippet.assert_success_message()
+
+        # Click the item to go to edit page
+        snippet.click_item_in_list("Delete Test Snippet")
+
+        # Delete the snippet (this uses the new Wagtail 7 dropdown UI)
+        snippet.delete()
+
+        # Verify we're back on the list page with success message
+        snippet.assert_success_message()
+        assert snippet.list_url in authenticated_page.url
+
+        # Verify the snippet no longer exists
+        exists = snippet.item_exists_in_list("Delete Test Snippet")
+        assert exists is False

@@ -354,7 +354,8 @@ class SnippetAdminPage(WagtailAdminPage):
         dropdown_toggle.click()
 
         # Click the Delete link (not button) in the dropdown
-        self.page.get_by_role("link", name="Delete").click()
+        # Use exact=True to avoid matching items like "Delete Test Snippet"
+        self.page.get_by_role("link", name="Delete", exact=True).click()
 
         if confirm:
             self.page.get_by_role("button", name="Yes, delete").click()

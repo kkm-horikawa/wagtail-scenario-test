@@ -242,7 +242,7 @@ class TestSnippetAdminPageFormInteractions:
         mock_page.locator.return_value.click.assert_called()
 
         # Check Delete link (not button) and Yes, delete button were clicked
-        mock_page.get_by_role.assert_any_call("link", name="Delete")
+        mock_page.get_by_role.assert_any_call("link", name="Delete", exact=True)
         mock_page.get_by_role.assert_any_call("button", name="Yes, delete")
 
     def test_delete_without_confirm(self, mock_page, test_url):
@@ -262,7 +262,7 @@ class TestSnippetAdminPageFormInteractions:
         )
 
         # Only Delete link clicked (not the confirmation button)
-        mock_page.get_by_role.assert_called_once_with("link", name="Delete")
+        mock_page.get_by_role.assert_called_once_with("link", name="Delete", exact=True)
 
 
 class TestSnippetAdminPageListOperations:
