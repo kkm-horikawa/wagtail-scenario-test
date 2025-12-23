@@ -181,6 +181,72 @@ class TestPageAdminEditPageE2E:
 
 @pytest.mark.e2e
 @pytest.mark.django_db(transaction=True)
+class TestPageAdminPublishE2E:
+    """E2E tests for PageAdminPage.publish()."""
+
+    def test_publish_draft_page(self, authenticated_page, server_url, home_page):
+        """Test publishing a draft page through the admin UI."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # First create a page as draft
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Publish",
+            slug="page-to-publish",
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Publish")
+        assert not created_page.live  # Should be draft initially
+
+        # Publish the page
+        page_admin.publish(page_id=created_page.id)
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify the page is now live
+        created_page.refresh_from_db()
+        assert created_page.live
+
+    def test_publish_from_edit_page(self, authenticated_page, server_url, home_page):
+        """Test publishing a page when already on the edit page."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # First create a page as draft
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Publish From Edit",
+            slug="page-to-publish-from-edit",
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Publish From Edit")
+
+        # Navigate to edit page first
+        page_admin.edit_page(created_page.id)
+
+        # Then publish without passing page_id
+        page_admin.publish()
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify the page is now live
+        created_page.refresh_from_db()
+        assert created_page.live
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
 class TestPageAdminDeletePageE2E:
     """E2E tests for PageAdminPage.delete_page()."""
 
