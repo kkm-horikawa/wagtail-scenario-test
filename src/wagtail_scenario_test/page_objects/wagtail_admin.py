@@ -440,3 +440,33 @@ class SnippetAdminPage(WagtailAdminPage):
         expect(error.first).to_be_visible(timeout=5000)
         if message:
             self.assert_visible(message)
+
+
+class PageAdminPage(WagtailAdminPage):
+    """
+    Page Object for Wagtail Page admin operations.
+
+    Provides methods for interacting with pages in the Wagtail admin,
+    including navigation through the page explorer.
+
+    Example:
+        page_admin = PageAdminPage(page, base_url)
+        page_admin.login("admin", "password")
+        page_admin.navigate_to_explorer()
+    """
+
+    # =========================================================================
+    # Navigation
+    # =========================================================================
+
+    def navigate_to_explorer(self) -> None:
+        """
+        Navigate to the page explorer.
+
+        Opens the page explorer panel by clicking the "Pages" button
+        in the sidebar. The explorer panel allows browsing and managing
+        the page tree.
+        """
+        self.page.get_by_role("button", name="Pages").click()
+        # Wait for the explorer panel to open (uses role="dialog" and aria-label)
+        self.page.locator(".c-page-explorer").wait_for(state="visible", timeout=10000)

@@ -21,6 +21,7 @@ __version__ = "0.1.0"
 
 from wagtail_scenario_test.page_objects import (
     BasePage,
+    PageAdminPage,
     SnippetAdminPage,
     WagtailAdmin,
     WagtailAdminPage,
@@ -32,4 +33,5 @@ __all__ = [
     "WagtailAdmin",
     "WagtailAdminPage",
     "SnippetAdminPage",
+    "PageAdminPage",
 ]
