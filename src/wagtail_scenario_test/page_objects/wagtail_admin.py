@@ -530,6 +530,30 @@ class PageAdminPage(WagtailAdminPage):
         """
         return f"/admin/pages/{page_id}/edit/preview/"
 
+    def get_live_url(self) -> str | None:
+        """
+        Get the live URL of the current page from the editor.
+
+        Must be on a page edit screen. Returns the href of the "Live" status link,
+        or None if the page is not published or has no routable URL.
+
+        In Wagtail 7+, published pages show a "Live" status link in the page header
+        that links to the live URL.
+
+        Returns:
+            The live URL of the page, or None if not available.
+
+        Example:
+            page_admin.edit_page(5)
+            url = page_admin.get_live_url()
+            # Returns something like "/my-page/" or None if not published
+        """
+        # In Wagtail 7+, the "Live" status link points to the live URL
+        link = self.page.get_by_role("link", name="Live")
+        if link.count() == 0:
+            return None
+        return link.get_attribute("href")
+
     # =========================================================================
     # Page Navigation
     # =========================================================================
