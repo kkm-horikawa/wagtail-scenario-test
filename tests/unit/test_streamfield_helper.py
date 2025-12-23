@@ -1,8 +1,8 @@
-"""Tests for StreamFieldHelper."""
+"""Tests for StreamFieldHelper and BlockPath."""
 
 from unittest.mock import MagicMock
 
-from wagtail_scenario_test import StreamFieldHelper
+from wagtail_scenario_test import BlockPath, StreamFieldHelper
 
 
 class TestStreamFieldHelperInit:
@@ -108,37 +108,6 @@ class TestStreamFieldHelperAddBlock:
         assert index == 2  # New block gets index 2
 
 
-class TestStreamFieldHelperFillBlock:
-    """Tests for StreamFieldHelper.fill_block()."""
-
-    def test_fill_block_fills_input(self):
-        """fill_block should fill input field."""
-        mock_page = MagicMock()
-        mock_input = MagicMock()
-        mock_input.count.return_value = 1
-
-        mock_page.locator.return_value = mock_input
-
-        helper = StreamFieldHelper(mock_page, "body")
-        helper.fill_block(0, "Test Value")
-
-        mock_page.locator.assert_called_with("#body-0-value")
-        mock_input.fill.assert_called_once_with("Test Value")
-
-    def test_fill_block_with_custom_field_name(self):
-        """fill_block should use correct field name in selector."""
-        mock_page = MagicMock()
-        mock_input = MagicMock()
-        mock_input.count.return_value = 1
-
-        mock_page.locator.return_value = mock_input
-
-        helper = StreamFieldHelper(mock_page, "content")
-        helper.fill_block(3, "Custom Value")
-
-        mock_page.locator.assert_called_with("#content-3-value")
-
-
 class TestStreamFieldHelperGetBlockCount:
     """Tests for StreamFieldHelper.get_block_count()."""
 
@@ -203,11 +172,80 @@ class TestStreamFieldHelperGetBlockType:
         mock_page.locator.assert_called_with("input[name='content-5-type']")
 
 
-class TestStreamFieldHelperStructBlock:
-    """Tests for StreamFieldHelper StructBlock methods."""
+class TestBlockPathNavigation:
+    """Tests for BlockPath navigation methods."""
 
-    def test_fill_struct_field_fills_field(self):
-        """fill_struct_field should fill the correct field."""
+    def test_block_returns_blockpath(self):
+        """block() should return a BlockPath instance."""
+        mock_page = MagicMock()
+        helper = StreamFieldHelper(mock_page, "body")
+
+        path = helper.block(0)
+
+        assert isinstance(path, BlockPath)
+        assert path._id == "body-0"
+
+    def test_struct_from_block(self):
+        """struct() from block should add -value-{field}."""
+        mock_page = MagicMock()
+        helper = StreamFieldHelper(mock_page, "body")
+
+        path = helper.block(0).struct("title")
+
+        assert path._id == "body-0-value-title"
+
+    def test_struct_from_item(self):
+        """struct() after item() should just add -{field}."""
+        mock_page = MagicMock()
+        helper = StreamFieldHelper(mock_page, "body")
+
+        path = helper.block(0).item(0).struct("title")
+
+        assert path._id == "body-0-value-0-value-title"
+
+    def test_item_from_block(self):
+        """item() from block should add -value-{index}-value."""
+        mock_page = MagicMock()
+        helper = StreamFieldHelper(mock_page, "body")
+
+        path = helper.block(0).item(0)
+
+        assert path._id == "body-0-value-0-value"
+
+    def test_item_from_struct(self):
+        """item() after struct() should add -{index}-value."""
+        mock_page = MagicMock()
+        helper = StreamFieldHelper(mock_page, "body")
+
+        path = helper.block(0).item(0).struct("cards").item(0)
+
+        assert path._id == "body-0-value-0-value-cards-0-value"
+
+    def test_deep_nesting(self):
+        """Deep nesting should build correct path."""
+        mock_page = MagicMock()
+        helper = StreamFieldHelper(mock_page, "body")
+
+        # Deep nesting: block -> item -> struct -> item -> struct -> item -> struct
+        path = (
+            helper.block(0)
+            .item(0)
+            .struct("sections")
+            .item(0)
+            .struct("cards")
+            .item(0)
+            .struct("title")
+        )
+
+        expected = "body-0-value-0-value-sections-0-value-cards-0-value-title"
+        assert path._id == expected
+
+
+class TestBlockPathFill:
+    """Tests for BlockPath.fill()."""
+
+    def test_fill_simple_block(self):
+        """fill() on simple block should use correct selector."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
@@ -215,13 +253,41 @@ class TestStreamFieldHelperStructBlock:
         mock_page.locator.return_value = mock_field
 
         helper = StreamFieldHelper(mock_page, "body")
-        helper.fill_struct_field(0, "title", "Welcome")
+        helper.block(0).fill("Test Value")
+
+        mock_page.locator.assert_called_with("#body-0-value")
+        mock_field.fill.assert_called_once_with("Test Value")
+
+    def test_fill_struct_field(self):
+        """fill() on struct field should use correct selector."""
+        mock_page = MagicMock()
+        mock_field = MagicMock()
+        mock_field.count.return_value = 1
+
+        mock_page.locator.return_value = mock_field
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.block(0).struct("title").fill("Welcome")
 
         mock_page.locator.assert_called_with("#body-0-value-title")
         mock_field.fill.assert_called_once_with("Welcome")
 
-    def test_fill_struct_field_with_different_block_index(self):
-        """fill_struct_field should use correct block index."""
+    def test_fill_list_item(self):
+        """fill() on list item should use correct selector."""
+        mock_page = MagicMock()
+        mock_field = MagicMock()
+        mock_field.count.return_value = 1
+
+        mock_page.locator.return_value = mock_field
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.block(0).item(0).fill("First item")
+
+        mock_page.locator.assert_called_with("#body-0-value-0-value")
+        mock_field.fill.assert_called_once_with("First item")
+
+    def test_fill_list_item_struct_field(self):
+        """fill() on list item struct field should use correct selector."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
@@ -229,12 +295,17 @@ class TestStreamFieldHelperStructBlock:
         mock_page.locator.return_value = mock_field
 
         helper = StreamFieldHelper(mock_page, "content")
-        helper.fill_struct_field(2, "subtitle", "Subtitle text")
+        helper.block(1).item(2).struct("url").fill("https://example.com")
 
-        mock_page.locator.assert_called_with("#content-2-value-subtitle")
+        mock_page.locator.assert_called_with("#content-1-value-2-value-url")
+        mock_field.fill.assert_called_once_with("https://example.com")
 
-    def test_get_struct_field_value_returns_value(self):
-        """get_struct_field_value should return field value."""
+
+class TestBlockPathValue:
+    """Tests for BlockPath.value()."""
+
+    def test_value_returns_field_value(self):
+        """value() should return the field's current value."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
@@ -243,13 +314,13 @@ class TestStreamFieldHelperStructBlock:
         mock_page.locator.return_value = mock_field
 
         helper = StreamFieldHelper(mock_page, "body")
-        value = helper.get_struct_field_value(0, "title")
+        value = helper.block(0).struct("title").value()
 
         assert value == "Current value"
         mock_page.locator.assert_called_with("#body-0-value-title")
 
-    def test_get_struct_field_value_returns_empty_when_not_found(self):
-        """get_struct_field_value should return empty string when field not found."""
+    def test_value_returns_empty_when_not_found(self):
+        """value() should return empty string when field not found."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 0
@@ -257,16 +328,16 @@ class TestStreamFieldHelperStructBlock:
         mock_page.locator.return_value = mock_field
 
         helper = StreamFieldHelper(mock_page, "body")
-        value = helper.get_struct_field_value(0, "nonexistent")
+        value = helper.block(0).struct("nonexistent").value()
 
         assert value == ""
 
 
-class TestStreamFieldHelperListBlock:
-    """Tests for StreamFieldHelper ListBlock methods."""
+class TestBlockPathItemCount:
+    """Tests for BlockPath.item_count()."""
 
-    def test_get_list_item_count_returns_count(self):
-        """get_list_item_count should return number of items."""
+    def test_item_count_returns_count(self):
+        """item_count() should return number of items."""
         mock_page = MagicMock()
         mock_count_input = MagicMock()
         mock_count_input.count.return_value = 1
@@ -275,13 +346,13 @@ class TestStreamFieldHelperListBlock:
         mock_page.locator.return_value = mock_count_input
 
         helper = StreamFieldHelper(mock_page, "body")
-        count = helper.get_list_item_count(0)
+        count = helper.block(0).item_count()
 
         assert count == 3
         mock_page.locator.assert_called_with("input[name='body-0-value-count']")
 
-    def test_get_list_item_count_returns_zero_when_no_input(self):
-        """get_list_item_count should return 0 when count input not found."""
+    def test_item_count_returns_zero_when_no_input(self):
+        """item_count() should return 0 when count input not found."""
         mock_page = MagicMock()
         mock_count_input = MagicMock()
         mock_count_input.count.return_value = 0
@@ -289,43 +360,78 @@ class TestStreamFieldHelperListBlock:
         mock_page.locator.return_value = mock_count_input
 
         helper = StreamFieldHelper(mock_page, "body")
-        count = helper.get_list_item_count(0)
+        count = helper.block(0).item_count()
 
         assert count == 0
 
-    def test_fill_list_item_fills_simple_item(self):
-        """fill_list_item should fill a simple ListBlock item."""
+
+class TestBlockPathClickChooser:
+    """Tests for BlockPath.click_chooser()."""
+
+    def test_click_chooser_standalone(self):
+        """click_chooser() on standalone block should click button."""
+        mock_page = MagicMock()
+        mock_button = MagicMock()
+        mock_button.count.return_value = 1
+
+        mock_page.locator.return_value.first = mock_button
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.block(0).click_chooser()
+
+        mock_button.click.assert_called_once()
+
+    def test_click_chooser_in_struct(self):
+        """click_chooser() on struct field should use correct selector."""
+        mock_page = MagicMock()
+        mock_button = MagicMock()
+        mock_button.count.return_value = 1
+
+        mock_page.locator.return_value.first = mock_button
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.block(0).struct("image").click_chooser()
+
+        # Verify locator was called with the struct field context
+        mock_page.locator.assert_called()
+        call_args = mock_page.locator.call_args[0][0]
+        assert "body-0-value-image" in call_args
+
+
+class TestLegacyMethods:
+    """Tests for backward-compatible legacy methods."""
+
+    def test_fill_block_calls_fluent_api(self):
+        """fill_block() should delegate to block().fill()."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
-
         mock_page.locator.return_value = mock_field
 
         helper = StreamFieldHelper(mock_page, "body")
-        helper.fill_list_item(0, 0, "First item")
+        helper.fill_block(0, "Test Value")
 
-        mock_page.locator.assert_called_with("#body-0-value-0-value")
-        mock_field.fill.assert_called_once_with("First item")
+        mock_page.locator.assert_called_with("#body-0-value")
+        mock_field.fill.assert_called_once_with("Test Value")
 
-    def test_fill_list_item_with_different_indices(self):
-        """fill_list_item should use correct block and item indices."""
+    def test_fill_struct_field_calls_fluent_api(self):
+        """fill_struct_field() should delegate to block().struct().fill()."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
-
         mock_page.locator.return_value = mock_field
 
-        helper = StreamFieldHelper(mock_page, "content")
-        helper.fill_list_item(2, 3, "Item value")
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.fill_struct_field(0, "title", "Welcome")
 
-        mock_page.locator.assert_called_with("#content-2-value-3-value")
+        mock_page.locator.assert_called_with("#body-0-value-title")
+        mock_field.fill.assert_called_once_with("Welcome")
 
-    def test_fill_list_item_field_fills_struct_field(self):
-        """fill_list_item_field should fill StructBlock field in ListBlock."""
+    def test_fill_list_item_field_calls_fluent_api(self):
+        """fill_list_item_field() should delegate to fluent API."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
-
         mock_page.locator.return_value = mock_field
 
         helper = StreamFieldHelper(mock_page, "body")
@@ -334,26 +440,26 @@ class TestStreamFieldHelperListBlock:
         mock_page.locator.assert_called_with("#body-0-value-0-value-title")
         mock_field.fill.assert_called_once_with("Link Title")
 
-    def test_fill_list_item_field_with_different_indices(self):
-        """fill_list_item_field should use correct indices and field name."""
+    def test_get_struct_field_value_calls_fluent_api(self):
+        """get_struct_field_value() should delegate to fluent API."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
-
+        mock_field.input_value.return_value = "Current value"
         mock_page.locator.return_value = mock_field
 
-        helper = StreamFieldHelper(mock_page, "content")
-        helper.fill_list_item_field(1, 2, "url", "https://example.com")
+        helper = StreamFieldHelper(mock_page, "body")
+        value = helper.get_struct_field_value(0, "title")
 
-        mock_page.locator.assert_called_with("#content-1-value-2-value-url")
+        assert value == "Current value"
+        mock_page.locator.assert_called_with("#body-0-value-title")
 
-    def test_get_list_item_field_value_returns_value(self):
-        """get_list_item_field_value should return field value."""
+    def test_get_list_item_field_value_calls_fluent_api(self):
+        """get_list_item_field_value() should delegate to fluent API."""
         mock_page = MagicMock()
         mock_field = MagicMock()
         mock_field.count.return_value = 1
         mock_field.input_value.return_value = "https://google.com"
-
         mock_page.locator.return_value = mock_field
 
         helper = StreamFieldHelper(mock_page, "body")
@@ -361,49 +467,3 @@ class TestStreamFieldHelperListBlock:
 
         assert value == "https://google.com"
         mock_page.locator.assert_called_with("#body-0-value-0-value-url")
-
-    def test_get_list_item_field_value_returns_empty_when_not_found(self):
-        """get_list_item_field_value should return empty when field not found."""
-        mock_page = MagicMock()
-        mock_field = MagicMock()
-        mock_field.count.return_value = 0
-
-        mock_page.locator.return_value = mock_field
-
-        helper = StreamFieldHelper(mock_page, "body")
-        value = helper.get_list_item_field_value(0, 0, "nonexistent")
-
-        assert value == ""
-
-
-class TestStreamFieldHelperChooserBlocks:
-    """Tests for StreamFieldHelper chooser block methods."""
-
-    def test_click_image_chooser_standalone(self):
-        """click_image_chooser should click chooser button for standalone block."""
-        mock_page = MagicMock()
-        mock_button = MagicMock()
-        mock_button.count.return_value = 1
-
-        mock_page.locator.return_value.first = mock_button
-
-        helper = StreamFieldHelper(mock_page, "body")
-        helper.click_image_chooser(0)
-
-        mock_button.click.assert_called_once()
-
-    def test_click_image_chooser_in_struct_block(self):
-        """click_image_chooser should use field_name for StructBlock context."""
-        mock_page = MagicMock()
-        mock_button = MagicMock()
-        mock_button.count.return_value = 1
-
-        mock_page.locator.return_value.first = mock_button
-
-        helper = StreamFieldHelper(mock_page, "body")
-        helper.click_image_chooser(0, "image")
-
-        # Verify locator was called with the struct field context
-        mock_page.locator.assert_called()
-        call_args = mock_page.locator.call_args[0][0]
-        assert "body-0-value-image" in call_args

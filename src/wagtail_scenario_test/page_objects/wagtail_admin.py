@@ -838,28 +838,244 @@ class PageAdminPage(WagtailAdminPage):
         return slug.strip("-")
 
 
+class BlockPath:
+    """
+    Fluent builder for navigating StreamField block structures.
+
+    BlockPath allows chaining methods to navigate into nested block structures
+    (StructBlocks, ListBlocks) and perform actions like fill() or value().
+
+    This class is not instantiated directly - use StreamFieldHelper.block() instead.
+
+    Example:
+        sf = StreamFieldHelper(page, "body")
+
+        # Simple block
+        sf.block(0).fill("Hello")
+
+        # StructBlock
+        sf.block(0).struct("title").fill("Welcome")
+
+        # ListBlock > StructBlock
+        sf.block(0).item(0).struct("title").fill("Card Title")
+
+        # Deep nesting
+        sf.block(0).item(0).struct("cards").item(0).struct("name").fill("Name")
+    """
+
+    def __init__(self, helper: StreamFieldHelper, path_id: str) -> None:
+        """
+        Initialize BlockPath.
+
+        Args:
+            helper: The parent StreamFieldHelper instance
+            path_id: Current path ID (e.g., "body-0" or "body-0-value-title")
+        """
+        self._helper = helper
+        self._id = path_id
+
+    def struct(self, field_name: str) -> BlockPath:
+        """
+        Navigate into a StructBlock field.
+
+        Args:
+            field_name: The name of the field within the StructBlock
+
+        Returns:
+            BlockPath: A new BlockPath pointing to the struct field
+
+        Example:
+            sf.block(0).struct("title").fill("Welcome")
+            sf.block(0).struct("hero").struct("subtitle").fill("Sub")
+        """
+        # If we're at a -value path (after item()), just add field name
+        # Otherwise, add -value- prefix
+        if self._id.endswith("-value"):
+            return BlockPath(self._helper, f"{self._id}-{field_name}")
+        else:
+            return BlockPath(self._helper, f"{self._id}-value-{field_name}")
+
+    def item(self, index: int) -> BlockPath:
+        """
+        Navigate into a ListBlock item.
+
+        Args:
+            index: The index of the item within the ListBlock (0-based)
+
+        Returns:
+            BlockPath: A new BlockPath pointing to the list item
+
+        Example:
+            sf.block(0).item(0).fill("First item")
+            sf.block(0).item(0).struct("title").fill("Card Title")
+        """
+        # If the path ends with digit or -value, we're at block level or item level
+        # Add full list item path: -value-{index}-value
+        # If the path ends with a field name (from struct()), just add -{index}-value
+        last_segment = self._id.split("-")[-1]
+        if last_segment.isdigit() or self._id.endswith("-value"):
+            return BlockPath(self._helper, f"{self._id}-value-{index}-value")
+        else:
+            return BlockPath(self._helper, f"{self._id}-{index}-value")
+
+    def fill(self, value: str) -> None:
+        """
+        Fill the current field with a value.
+
+        Works for CharBlock, TextBlock, URLBlock, and other simple input fields.
+
+        Args:
+            value: The value to fill
+
+        Example:
+            sf.block(0).fill("Simple block value")
+            sf.block(0).struct("title").fill("Struct field value")
+        """
+        selector = self._build_value_selector()
+        field = self._helper.page.locator(selector)
+
+        if field.count() > 0:
+            field.fill(value)
+        else:
+            # Try textarea for TextBlock, etc.
+            name = selector[1:]  # Remove # prefix to get name
+            textarea = self._helper.page.locator(f"textarea[name='{name}']")
+            if textarea.count() > 0:
+                textarea.fill(value)
+
+    def value(self) -> str:
+        """
+        Get the current value of the field.
+
+        Returns:
+            str: The current value, or empty string if not found
+
+        Example:
+            title = sf.block(0).struct("title").value()
+        """
+        selector = self._build_value_selector()
+        field = self._helper.page.locator(selector)
+        if field.count() > 0:
+            return field.input_value()
+        return ""
+
+    def click_chooser(self) -> None:
+        """
+        Click the chooser button (for ImageChooserBlock, DocumentChooserBlock, etc.).
+
+        Opens the chooser modal for selecting an image, document, or other media.
+
+        Example:
+            sf.block(0).click_chooser()  # Standalone chooser
+            sf.block(0).struct("image").click_chooser()  # Chooser in StructBlock
+        """
+        container_id = self._id if "-value" in self._id else f"{self._id}-value"
+
+        chooser_button = self._helper.page.locator(
+            f"[id^='{container_id}'] .chooser__choose-button, "
+            f"#panel-child-content-{container_id}-section .chooser__choose-button"
+        ).first
+
+        if chooser_button.count() > 0:
+            chooser_button.click()
+            self._helper.page.wait_for_timeout(500)
+
+    def add_item(self) -> int:
+        """
+        Add a new item to a ListBlock at this path.
+
+        Returns:
+            int: The index of the newly added item
+
+        Example:
+            new_index = sf.block(0).add_item()
+            sf.block(0).item(new_index).struct("title").fill("New Card")
+        """
+        # Get current item count
+        if "-value" in self._id:
+            count_name = f"{self._id}-count"
+        else:
+            count_name = f"{self._id}-value-count"
+        count_input = self._helper.page.locator(f"input[name='{count_name}']")
+        current_count = 0
+        if count_input.count() > 0:
+            val = count_input.input_value()
+            current_count = int(val) if val else 0
+
+        # Find and click the add button
+        # The add button is typically in the list container
+        container_selector = f"[id^='{self._id}']"
+        add_button = (
+            self._helper.page.locator(container_selector)
+            .locator("button")
+            .filter(has_text="Add")
+            .first
+        )
+
+        if add_button.count() > 0:
+            add_button.click()
+            self._helper.page.wait_for_timeout(300)
+
+        return current_count
+
+    def item_count(self) -> int:
+        """
+        Get the number of items in a ListBlock at this path.
+
+        Returns:
+            int: The number of items in the ListBlock
+
+        Example:
+            count = sf.block(0).item_count()
+        """
+        if "-value" in self._id:
+            count_name = f"{self._id}-count"
+        else:
+            count_name = f"{self._id}-value-count"
+        count_input = self._helper.page.locator(f"input[name='{count_name}']")
+        if count_input.count() > 0:
+            val = count_input.input_value()
+            return int(val) if val else 0
+        return 0
+
+    def _build_value_selector(self) -> str:
+        """Build the CSS selector for the value input."""
+        # If we're at block level (ends with digit, no -value yet), add -value
+        last_segment = self._id.split("-")[-1]
+        if last_segment.isdigit() and "-value" not in self._id:
+            return f"#{self._id}-value"
+        return f"#{self._id}"
+
+
 class StreamFieldHelper:
     """
     Helper class for interacting with StreamField blocks in Wagtail admin.
 
-    This helper provides methods for adding, editing, and managing StreamField
-    blocks within a page editor. It is designed to be used in conjunction with
-    PageAdminPage or directly on a page edit form.
+    Provides a fluent API for navigating and manipulating StreamField blocks,
+    including StructBlocks, ListBlocks, and deeply nested structures.
 
     Example:
         page_admin = PageAdminPage(page, base_url)
         page_admin.edit_page(page_id)
 
-        # Create helper for the 'body' StreamField
         sf = StreamFieldHelper(page, "body")
 
-        # Add a heading block
+        # Add and fill a simple block
         index = sf.add_block("Heading")
-        sf.fill_block(index, "My Heading")
+        sf.block(index).fill("My Heading")
 
-        # Add a paragraph block
-        index = sf.add_block("Paragraph")
-        # For RichText, use fill_rich_text_block instead
+        # Work with StructBlock
+        index = sf.add_block("Hero Section")
+        sf.block(index).struct("title").fill("Welcome")
+        sf.block(index).struct("subtitle").fill("To our site")
+
+        # Work with ListBlock containing StructBlocks
+        index = sf.add_block("Links")
+        sf.block(index).item(0).struct("title").fill("Google")
+        sf.block(index).item(0).struct("url").fill("https://google.com")
+
+        # Deep nesting
+        sf.block(0).item(0).struct("cards").item(0).struct("name").fill("Card")
 
     Attributes:
         page: The Playwright Page instance
@@ -877,9 +1093,29 @@ class StreamFieldHelper:
         self.page = page
         self.field_name = field_name
 
+    def block(self, index: int) -> BlockPath:
+        """
+        Get a BlockPath for a block at the specified index.
+
+        This is the entry point for the fluent API. Chain methods like
+        struct(), item(), fill(), and value() to navigate and interact
+        with nested block structures.
+
+        Args:
+            index: The block index (0-based)
+
+        Returns:
+            BlockPath: A fluent builder for navigating the block structure
+
+        Example:
+            sf.block(0).fill("Simple value")
+            sf.block(0).struct("title").fill("Struct field")
+            sf.block(0).item(0).struct("name").fill("List item field")
+        """
+        return BlockPath(self, f"{self.field_name}-{index}")
+
     def _get_add_button(self):
         """Get the add block button for this StreamField."""
-        # The add button is inside the field's panel section
         panel_selector = f"#panel-child-content-{self.field_name}-section"
         panel = self.page.locator(panel_selector)
         return panel.locator(".c-sf-add-button").first
@@ -910,56 +1146,21 @@ class StreamFieldHelper:
         Example:
             sf = StreamFieldHelper(page, "body")
             index = sf.add_block("Heading")
-            # index is 0 for the first block, 1 for the second, etc.
+            sf.block(index).fill("My Heading")
         """
-        # Get current block count before adding
         current_count = self._get_block_count()
 
-        # Click the add button to open the block chooser
         add_button = self._get_add_button()
         add_button.click()
 
-        # Wait for the combobox menu to appear
         self.page.locator(".w-combobox__menu").wait_for(state="visible")
 
-        # Select the block type from the menu
         option = self.page.locator("[role='option']").filter(has_text=block_type)
         option.first.click()
 
-        # Wait for the block to be added
         self.page.wait_for_timeout(300)
 
-        # Return the index of the new block
         return current_count
-
-    def fill_block(self, index: int, value: str) -> None:
-        """
-        Fill a simple block (CharBlock, TextBlock) with a value.
-
-        This method works for blocks that have a single input or textarea
-        field, such as CharBlock or TextBlock.
-
-        Args:
-            index: The block index (0-based)
-            value: The value to fill in the block
-
-        Example:
-            sf = StreamFieldHelper(page, "body")
-            index = sf.add_block("Heading")
-            sf.fill_block(index, "My Page Title")
-        """
-        input_selector = f"#{self.field_name}-{index}-value"
-        input_field = self.page.locator(input_selector)
-
-        # Try input first, then textarea
-        if input_field.count() > 0:
-            input_field.fill(value)
-        else:
-            # Try textarea
-            textarea_selector = f"textarea[name='{self.field_name}-{index}-value']"
-            textarea = self.page.locator(textarea_selector)
-            if textarea.count() > 0:
-                textarea.fill(value)
 
     def get_block_count(self) -> int:
         """
@@ -983,111 +1184,73 @@ class StreamFieldHelper:
         type_input = self.page.locator(f"input[name='{self.field_name}-{index}-type']")
         return type_input.input_value()
 
-    # StructBlock methods
+    def select_from_chooser(self, title: str) -> None:
+        """
+        Select an item from an open chooser modal by title.
+
+        Call this after BlockPath.click_chooser() to select a specific item.
+
+        Args:
+            title: The title of the item to select
+
+        Example:
+            sf.block(0).struct("image").click_chooser()
+            sf.select_from_chooser("My Image")
+        """
+        modal = self.page.locator("[data-chooser-modal]")
+        modal.wait_for(state="visible")
+
+        item = modal.locator(f"[data-title='{title}']").first
+        if item.count() > 0:
+            item.click()
+        else:
+            link = modal.get_by_role("link", name=title).first
+            if link.count() > 0:
+                link.click()
+
+        self.page.wait_for_timeout(300)
+
+    # Legacy methods for backward compatibility
+
+    def fill_block(self, index: int, value: str) -> None:
+        """
+        Fill a simple block with a value.
+
+        Deprecated: Use sf.block(index).fill(value) instead.
+        """
+        self.block(index).fill(value)
 
     def fill_struct_field(self, block_index: int, field_name: str, value: str) -> None:
         """
         Fill a field within a StructBlock.
 
-        StructBlocks contain multiple named fields. This method fills a specific
-        field within a StructBlock at the given block index.
-
-        Args:
-            block_index: The index of the StructBlock (0-based)
-            field_name: The name of the field within the StructBlock
-            value: The value to fill in the field
-
-        Example:
-            sf = StreamFieldHelper(page, "body")
-            index = sf.add_block("Hero Section")
-            sf.fill_struct_field(index, "title", "Welcome")
-            sf.fill_struct_field(index, "subtitle", "To our site")
+        Deprecated: Use sf.block(index).struct(field_name).fill(value) instead.
         """
-        selector = f"#{self.field_name}-{block_index}-value-{field_name}"
-        field = self.page.locator(selector)
-        if field.count() > 0:
-            field.fill(value)
+        self.block(block_index).struct(field_name).fill(value)
 
     def get_struct_field_value(self, block_index: int, field_name: str) -> str:
         """
         Get the value of a field within a StructBlock.
 
-        Args:
-            block_index: The index of the StructBlock (0-based)
-            field_name: The name of the field within the StructBlock
-
-        Returns:
-            str: The current value of the field
+        Deprecated: Use sf.block(index).struct(field_name).value() instead.
         """
-        selector = f"#{self.field_name}-{block_index}-value-{field_name}"
-        field = self.page.locator(selector)
-        if field.count() > 0:
-            return field.input_value()
-        return ""
-
-    # ListBlock methods
+        return self.block(block_index).struct(field_name).value()
 
     def get_list_item_count(self, block_index: int) -> int:
         """
         Get the number of items in a ListBlock.
 
-        Args:
-            block_index: The index of the ListBlock (0-based)
-
-        Returns:
-            int: The number of items in the ListBlock
+        Deprecated: Use sf.block(index).item_count() instead.
         """
-        count_selector = f"input[name='{self.field_name}-{block_index}-value-count']"
-        count_input = self.page.locator(count_selector)
-        if count_input.count() == 0:
-            return 0
-        value = count_input.input_value()
-        return int(value) if value else 0
-
-    def add_list_item(self, block_index: int) -> int:
-        """
-        Add a new item to a ListBlock.
-
-        Args:
-            block_index: The index of the ListBlock (0-based)
-
-        Returns:
-            int: The index of the newly added item within the ListBlock
-        """
-        current_count = self.get_list_item_count(block_index)
-
-        # Find the add button within the ListBlock
-        # The ListBlock container has a specific structure
-        list_container = self.page.locator(
-            f"[data-contentpath='{block_index}'] [data-contentpath='value']"
-        )
-        add_button = list_container.locator("button").filter(has_text="Add").first
-
-        if add_button.count() > 0:
-            add_button.click()
-            self.page.wait_for_timeout(300)
-
-        return current_count
+        return self.block(block_index).item_count()
 
     def fill_list_item(self, block_index: int, item_index: int, value: str) -> None:
         """
-        Fill a simple ListBlock item (e.g., ListBlock of CharBlock).
+        Fill a simple ListBlock item.
 
-        Args:
-            block_index: The index of the ListBlock (0-based)
-            item_index: The index of the item within the ListBlock (0-based)
-            value: The value to fill
-
-        Example:
-            sf = StreamFieldHelper(page, "body")
-            index = sf.add_block("Items")
-            sf.add_list_item(index)
-            sf.fill_list_item(index, 0, "First item")
+        Deprecated: Use sf.block(index).item(item_index).fill(value) instead.
         """
-        selector = f"#{self.field_name}-{block_index}-value-{item_index}-value"
-        field = self.page.locator(selector)
-        if field.count() > 0:
-            field.fill(value)
+        self.block(block_index).item(item_index).fill(value)
 
     def fill_list_item_field(
         self, block_index: int, item_index: int, field_name: str, value: str
@@ -1095,27 +1258,9 @@ class StreamFieldHelper:
         """
         Fill a field within a StructBlock inside a ListBlock.
 
-        Use this for ListBlock containing StructBlocks (e.g., list of cards).
-
-        Args:
-            block_index: The index of the ListBlock (0-based)
-            item_index: The index of the item within the ListBlock (0-based)
-            field_name: The name of the field within the StructBlock
-            value: The value to fill
-
-        Example:
-            sf = StreamFieldHelper(page, "body")
-            index = sf.add_block("Links")
-            sf.add_list_item(index)
-            sf.fill_list_item_field(index, 0, "title", "Google")
-            sf.fill_list_item_field(index, 0, "url", "https://google.com")
+        Deprecated: Use sf.block(index).item(i).struct(field).fill(value) instead.
         """
-        selector = (
-            f"#{self.field_name}-{block_index}-value-{item_index}-value-{field_name}"
-        )
-        field = self.page.locator(selector)
-        if field.count() > 0:
-            field.fill(value)
+        self.block(block_index).item(item_index).struct(field_name).fill(value)
 
     def get_list_item_field_value(
         self, block_index: int, item_index: int, field_name: str
@@ -1123,82 +1268,36 @@ class StreamFieldHelper:
         """
         Get the value of a field within a StructBlock inside a ListBlock.
 
-        Args:
-            block_index: The index of the ListBlock (0-based)
-            item_index: The index of the item within the ListBlock (0-based)
-            field_name: The name of the field within the StructBlock
-
-        Returns:
-            str: The current value of the field
+        Deprecated: Use sf.block(index).item(i).struct(field).value() instead.
         """
-        selector = (
-            f"#{self.field_name}-{block_index}-value-{item_index}-value-{field_name}"
-        )
-        field = self.page.locator(selector)
-        if field.count() > 0:
-            return field.input_value()
-        return ""
-
-    # Chooser block methods
+        return self.block(block_index).item(item_index).struct(field_name).value()
 
     def click_image_chooser(
         self, block_index: int, field_name: str | None = None
     ) -> None:
         """
-        Click the image chooser button to open the image selection modal.
+        Click the image chooser button.
 
-        For standalone ImageChooserBlock, field_name is None.
-        For ImageChooserBlock within a StructBlock, provide the field_name.
-
-        Args:
-            block_index: The index of the block (0-based)
-            field_name: The field name if within a StructBlock (optional)
-
-        Example:
-            # Standalone ImageChooserBlock
-            sf.click_image_chooser(0)
-
-            # ImageChooserBlock within StructBlock
-            sf.click_image_chooser(0, "image")
+        Deprecated: Use sf.block(index).click_chooser() or
+        sf.block(index).struct(field).click_chooser() instead.
         """
         if field_name:
-            # Within a StructBlock
-            container_id = f"{self.field_name}-{block_index}-value-{field_name}"
+            self.block(block_index).struct(field_name).click_chooser()
         else:
-            # Standalone block
-            container_id = f"{self.field_name}-{block_index}-value"
-
-        chooser_button = self.page.locator(
-            f"[id^='{container_id}'] .chooser__choose-button, "
-            f"#panel-child-content-{container_id}-section .chooser__choose-button"
-        ).first
-
-        if chooser_button.count() > 0:
-            chooser_button.click()
-            # Wait for modal to open
-            self.page.wait_for_timeout(500)
+            self.block(block_index).click_chooser()
 
     def select_image_from_chooser(self, image_title: str) -> None:
         """
-        Select an image from the image chooser modal by title.
+        Select an image from the chooser modal.
 
-        Call this after click_image_chooser() to select a specific image.
-
-        Args:
-            image_title: The title of the image to select
+        Deprecated: Use sf.select_from_chooser(title) instead.
         """
-        # Wait for the modal to be visible
-        modal = self.page.locator("[data-chooser-modal]")
-        modal.wait_for(state="visible")
+        self.select_from_chooser(image_title)
 
-        # Find and click the image with the given title
-        image_option = modal.locator(f"[data-title='{image_title}']").first
-        if image_option.count() > 0:
-            image_option.click()
-        else:
-            # Try alternative selector for image list
-            image_link = modal.get_by_role("link", name=image_title).first
-            if image_link.count() > 0:
-                image_link.click()
+    def add_list_item(self, block_index: int) -> int:
+        """
+        Add a new item to a ListBlock.
 
-        self.page.wait_for_timeout(300)
+        Deprecated: Use sf.block(index).add_item() instead.
+        """
+        return self.block(block_index).add_item()
