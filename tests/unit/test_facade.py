@@ -1,7 +1,10 @@
 """Unit tests for WagtailAdmin facade."""
 
 from wagtail_scenario_test.page_objects.facade import WagtailAdmin
-from wagtail_scenario_test.page_objects.wagtail_admin import SnippetAdminPage
+from wagtail_scenario_test.page_objects.wagtail_admin import (
+    PageAdminPage,
+    SnippetAdminPage,
+)
 
 
 class TestWagtailAdminInit:
@@ -207,3 +210,40 @@ class TestWagtailAdminAdditionalMethods:
         mock_page.wait_for_load_state.assert_called_once_with(
             "networkidle", timeout=5000
         )
+
+
+class TestWagtailAdminPages:
+    """Tests for WagtailAdmin.pages() method."""
+
+    def test_pages_returns_page_admin_page(self, mock_page, test_url):
+        """pages() should return a PageAdminPage instance."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        result = admin.pages()
+
+        assert isinstance(result, PageAdminPage)
+
+    def test_pages_shares_page(self, mock_page, test_url):
+        """pages() should share the same page instance."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        result = admin.pages()
+
+        assert result.page is mock_page
+
+    def test_pages_returns_new_instance(self, mock_page, test_url):
+        """pages() should return new instance each time."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        result1 = admin.pages()
+        result2 = admin.pages()
+
+        assert result1 is not result2
+
+    def test_pages_navigate_to_explorer(self, mock_page, test_url):
+        """pages().navigate_to_explorer() should work."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        admin.pages().navigate_to_explorer()
+
+        mock_page.get_by_role.assert_called_with("button", name="Pages")
