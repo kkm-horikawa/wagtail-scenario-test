@@ -57,9 +57,18 @@ class WagtailAdminPage(BasePage):
         self.page.wait_for_url(f"**{self.ADMIN_ROOT}**")
 
     def logout(self) -> None:
-        """Log out of Wagtail admin by navigating to the logout URL."""
-        self.goto(self.LOGOUT_URL)
-        self.wait_for_navigation()
+        """Log out of Wagtail admin using the UI logout button."""
+        # Click the user menu button in sidebar footer to expand the dropdown
+        user_button = self.page.locator(".sidebar-footer button").first
+        if user_button.count() > 0:
+            user_button.click()
+            self.page.wait_for_timeout(300)
+
+        # Click the "Log out" link in the expanded menu
+        logout_link = self.page.get_by_text("Log out", exact=True)
+        if logout_link.count() > 0:
+            logout_link.click()
+            self.wait_for_navigation()
 
     def is_logged_in(self) -> bool:
         """Check if currently logged in."""
@@ -993,6 +1002,185 @@ class BlockPath:
             chooser_button.click()
             self._helper.page.wait_for_timeout(500)
 
+    def check(self) -> None:
+        """
+        Check a BooleanBlock checkbox.
+
+        Example:
+            sf.block(0).check()  # Check the boolean block
+        """
+        selector = self._build_value_selector()
+        checkbox = self._helper.page.locator(selector)
+        if checkbox.count() > 0:
+            checkbox.check()
+
+    def uncheck(self) -> None:
+        """
+        Uncheck a BooleanBlock checkbox.
+
+        Example:
+            sf.block(0).uncheck()  # Uncheck the boolean block
+        """
+        selector = self._build_value_selector()
+        checkbox = self._helper.page.locator(selector)
+        if checkbox.count() > 0:
+            checkbox.uncheck()
+
+    def is_checked(self) -> bool:
+        """
+        Check if a BooleanBlock checkbox is checked.
+
+        Returns:
+            bool: True if checked, False otherwise
+
+        Example:
+            if sf.block(0).is_checked():
+                print("Checkbox is checked")
+        """
+        selector = self._build_value_selector()
+        checkbox = self._helper.page.locator(selector)
+        if checkbox.count() > 0:
+            return checkbox.is_checked()
+        return False
+
+    def select(self, value: str) -> None:
+        """
+        Select an option from a ChoiceBlock dropdown.
+
+        Args:
+            value: The value of the option to select (not the label)
+
+        Example:
+            sf.block(0).select("option1")  # Select by value
+        """
+        selector = self._build_value_selector()
+        select_elem = self._helper.page.locator(selector)
+        if select_elem.count() > 0:
+            select_elem.select_option(value)
+
+    def select_multiple(self, values: list[str]) -> None:
+        """
+        Select multiple options from a MultipleChoiceBlock.
+
+        Args:
+            values: List of values to select
+
+        Example:
+            sf.block(0).select_multiple(["red", "blue"])
+        """
+        selector = self._build_value_selector()
+        select_elem = self._helper.page.locator(selector)
+        if select_elem.count() > 0:
+            select_elem.select_option(values)
+
+    def set_date(self, date: str) -> None:
+        """
+        Set a date value for a DateBlock.
+
+        Args:
+            date: Date string in YYYY-MM-DD format
+
+        Example:
+            sf.block(0).set_date("2024-01-15")
+        """
+        selector = self._build_value_selector()
+        date_input = self._helper.page.locator(selector)
+        if date_input.count() > 0:
+            date_input.fill(date)
+
+    def set_time(self, time: str) -> None:
+        """
+        Set a time value for a TimeBlock.
+
+        Args:
+            time: Time string in HH:MM format (24-hour)
+
+        Example:
+            sf.block(0).set_time("14:30")
+        """
+        selector = self._build_value_selector()
+        time_input = self._helper.page.locator(selector)
+        if time_input.count() > 0:
+            time_input.fill(time)
+
+    def set_datetime(self, date: str, time: str) -> None:
+        """
+        Set date and time values for a DateTimeBlock.
+
+        DateTimeBlock uses a single input field with date and time combined.
+
+        Args:
+            date: Date string in YYYY-MM-DD format
+            time: Time string in HH:MM format (24-hour)
+
+        Example:
+            sf.block(0).set_datetime("2024-01-15", "14:30")
+        """
+        # DateTimeBlock uses a single input with combined datetime value
+        selector = self._build_value_selector()
+        datetime_input = self._helper.page.locator(selector)
+        if datetime_input.count() > 0:
+            datetime_input.fill(f"{date} {time}")
+
+    def block(self, index: int) -> BlockPath:
+        """
+        Navigate into a block within a nested StreamBlock.
+
+        Args:
+            index: The index of the block (0-based)
+
+        Returns:
+            BlockPath: A new BlockPath pointing to the nested block
+
+        Example:
+            sf.block(0).block(0).fill("Nested content")
+        """
+        base_id = self._id if "-value" in self._id else f"{self._id}-value"
+        return BlockPath(self._helper, f"{base_id}-{index}")
+
+    def add_block(self, block_type: str) -> int:
+        """
+        Add a block to a nested StreamBlock at this path.
+
+        Args:
+            block_type: The label of the block type to add
+
+        Returns:
+            int: The index of the newly added block
+
+        Example:
+            sf.block(0).add_block("Text")  # Add block to nested StreamBlock
+        """
+        # Get current block count from the nested StreamBlock
+        base_id = self._id if "-value" in self._id else f"{self._id}-value"
+        count_input = self._helper.page.locator(f"input[name='{base_id}-count']")
+        current_count = 0
+        if count_input.count() > 0:
+            val = count_input.input_value()
+            current_count = int(val) if val else 0
+
+        # Find the block's UUID from the id input
+        block_id_input = self._helper.page.locator(f"input[name='{self._id}-id']")
+        if block_id_input.count() > 0:
+            block_uuid = block_id_input.input_value()
+
+            # Find the container element with data-contentpath matching the UUID
+            container = self._helper.page.locator(f"[data-contentpath='{block_uuid}']")
+            if container.count() > 0:
+                # Find the add button inside this container
+                add_button = container.locator(".c-sf-add-button").first
+                if add_button.count() > 0:
+                    add_button.click()
+                    self._helper.page.wait_for_timeout(200)
+
+                    # Click the block type in the menu using text selector
+                    menu_item = self._helper.page.get_by_text(block_type, exact=True)
+                    if menu_item.count() > 0:
+                        menu_item.first.click()
+                        self._helper.page.wait_for_timeout(300)
+
+        return current_count
+
     def add_item(self) -> int:
         """
         Add a new item to a ListBlock at this path.
@@ -1077,9 +1265,10 @@ class BlockPath:
 
     def _build_value_selector(self) -> str:
         """Build the CSS selector for the value input."""
-        # If we're at block level (ends with digit, no -value yet), add -value
+        # If we're at block level (ends with digit), add -value
+        # A path ending in digit needs -value to reach the actual input
         last_segment = self._id.split("-")[-1]
-        if last_segment.isdigit() and "-value" not in self._id:
+        if last_segment.isdigit():
             return f"#{self._id}-value"
         return f"#{self._id}"
 

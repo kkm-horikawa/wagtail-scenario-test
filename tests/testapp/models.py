@@ -3,15 +3,30 @@
 from django.db import models
 from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import (
+    BlockQuoteBlock,
+    BooleanBlock,
     CharBlock,
+    ChoiceBlock,
+    DateBlock,
+    DateTimeBlock,
+    DecimalBlock,
+    EmailBlock,
+    FloatBlock,
+    IntegerBlock,
     ListBlock,
+    MultipleChoiceBlock,
     PageChooserBlock,
+    RawHTMLBlock,
+    RegexBlock,
     RichTextBlock,
+    StreamBlock,
     StructBlock,
     TextBlock,
+    TimeBlock,
     URLBlock,
 )
 from wagtail.documents.blocks import DocumentChooserBlock
+from wagtail.embeds.blocks import EmbedBlock
 from wagtail.fields import StreamField
 from wagtail.images.blocks import ImageChooserBlock
 from wagtail.models import Page
@@ -150,3 +165,90 @@ class AdvancedStreamFieldPage(Page):
 
     class Meta:
         verbose_name = "Advanced StreamField Page"
+
+
+# Nested StreamBlock for testing
+class NestedContentBlock(StreamBlock):
+    """A nested StreamBlock for testing StreamBlock within StreamField."""
+
+    text = CharBlock()
+    quote = BlockQuoteBlock()
+
+
+class AllBlockTypesPage(Page):
+    """Page model with ALL StreamField block types for comprehensive testing."""
+
+    body = StreamField(
+        [
+            # ===== Text Input Blocks =====
+            ("char", CharBlock(label="Char Block")),
+            ("text", TextBlock(label="Text Block")),
+            ("email", EmailBlock(label="Email Block")),
+            ("url", URLBlock(label="URL Block")),
+            (
+                "regex",
+                RegexBlock(regex=r"^[A-Z]{3}$", label="Regex Block (3 uppercase)"),
+            ),
+            # ===== Numeric Blocks =====
+            ("integer", IntegerBlock(label="Integer Block")),
+            ("float", FloatBlock(label="Float Block")),
+            ("decimal", DecimalBlock(label="Decimal Block", decimal_places=2)),
+            # ===== Date/Time Blocks =====
+            ("date", DateBlock(label="Date Block")),
+            ("time", TimeBlock(label="Time Block")),
+            ("datetime", DateTimeBlock(label="DateTime Block")),
+            # ===== Content Blocks =====
+            ("richtext", RichTextBlock(label="Rich Text Block")),
+            ("rawhtml", RawHTMLBlock(label="Raw HTML Block")),
+            ("blockquote", BlockQuoteBlock(label="Block Quote")),
+            # ===== Selection Blocks =====
+            (
+                "boolean",
+                BooleanBlock(label="Boolean Block", required=False),
+            ),
+            (
+                "choice",
+                ChoiceBlock(
+                    choices=[
+                        ("option1", "Option 1"),
+                        ("option2", "Option 2"),
+                        ("option3", "Option 3"),
+                    ],
+                    label="Choice Block",
+                ),
+            ),
+            (
+                "multiple_choice",
+                MultipleChoiceBlock(
+                    choices=[
+                        ("red", "Red"),
+                        ("green", "Green"),
+                        ("blue", "Blue"),
+                    ],
+                    label="Multiple Choice Block",
+                ),
+            ),
+            # ===== Chooser Blocks =====
+            ("image", ImageChooserBlock(label="Image Block")),
+            ("document", DocumentChooserBlock(label="Document Block")),
+            ("page", PageChooserBlock(label="Page Block")),
+            (
+                "snippet",
+                SnippetChooserBlock("testapp.TestSnippet", label="Snippet Block"),
+            ),
+            ("embed", EmbedBlock(label="Embed Block")),
+            # ===== Structural Blocks =====
+            ("struct", HeroBlock()),
+            ("list", ListBlock(CharBlock(label="Item"), label="List Block")),
+            ("nested_stream", NestedContentBlock(label="Nested Stream Block")),
+        ],
+        use_json_field=True,
+        blank=True,
+    )
+
+    content_panels = Page.content_panels + [
+        FieldPanel("body"),
+    ]
+
+    class Meta:
+        verbose_name = "All Block Types Page"
