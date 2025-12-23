@@ -1167,3 +1167,106 @@ class TestStreamFieldHelperPageChooserE2E:
         assert created_page.body[0].block_type == "related_page"
         assert created_page.body[0].value is not None
         assert created_page.body[0].value.title == home_page.title
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperDocumentChooserE2E:
+    """E2E tests for DocumentChooserBlock with click_chooser and select_from_chooser."""
+
+    def test_click_chooser_opens_document_modal(
+        self, authenticated_page, server_url, home_page, test_document
+    ):
+        """Test that click_chooser opens the document chooser modal."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Document Chooser Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Document block
+        index = sf.add_block("Document")
+
+        # Click chooser button
+        sf.block(index).click_chooser()
+
+        # Verify modal is open
+        modal = authenticated_page.locator(".modal")
+        assert modal.count() > 0, "Document chooser modal should be open"
+
+    def test_select_document_from_chooser(
+        self, authenticated_page, server_url, home_page, test_document
+    ):
+        """Test selecting a document from the chooser modal."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Select Document Test Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Document block
+        index = sf.add_block("Document")
+
+        # Click chooser and select document
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(test_document.title)
+
+        # Wait for chooser to close
+        authenticated_page.wait_for_timeout(500)
+
+        # Modal should be closed
+        modal = authenticated_page.locator(".modal.fade.in")
+        assert modal.count() == 0, "Modal should be closed after selection"
+
+    def test_save_page_with_document(
+        self, authenticated_page, server_url, home_page, test_document
+    ):
+        """Test saving a page with a DocumentChooserBlock."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Page With Document")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Document block
+        index = sf.add_block("Document")
+
+        # Select document
+        sf.block(index).click_chooser()
+        sf.select_from_chooser(test_document.title)
+
+        authenticated_page.wait_for_timeout(500)
+
+        # Save the page
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("page-with-document")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify the document was saved
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Page With Document")
+        assert created_page.body[0].block_type == "document"
+        assert created_page.body[0].value is not None
+        assert created_page.body[0].value.title == test_document.title

@@ -1226,7 +1226,7 @@ class StreamFieldHelper:
         """
         Select an item from an open chooser modal by title.
 
-        Supports ImageChooser, SnippetChooser, and PageChooser modals.
+        Supports ImageChooser, DocumentChooser, SnippetChooser, and PageChooser modals.
         Call this after BlockPath.click_chooser() to select a specific item.
 
         Args:

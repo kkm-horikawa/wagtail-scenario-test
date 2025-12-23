@@ -11,6 +11,7 @@ from wagtail.blocks import (
     TextBlock,
     URLBlock,
 )
+from wagtail.documents.blocks import DocumentChooserBlock
 from wagtail.fields import StreamField
 from wagtail.images.blocks import ImageChooserBlock
 from wagtail.models import Page
@@ -134,6 +135,8 @@ class AdvancedStreamFieldPage(Page):
             ("snippet", SnippetChooserBlock("testapp.TestSnippet")),
             # PageChooserBlock
             ("related_page", PageChooserBlock()),
+            # DocumentChooserBlock
+            ("document", DocumentChooserBlock()),
             # Deep nesting: StructBlock > ListBlock > StructBlock
             ("section", SectionBlock()),
         ],
