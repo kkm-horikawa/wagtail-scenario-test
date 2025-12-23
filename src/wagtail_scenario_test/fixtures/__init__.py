@@ -9,6 +9,7 @@ Available fixtures:
     - server_url: Base URL of the live test server
     - wagtail_site: Creates a Wagtail site with root page
     - home_page: Gets or creates a home page under site root
+    - test_page: Creates a test page under home_page
     - admin_credentials: Returns default admin credentials
     - admin_user_e2e: Creates an admin user for E2E testing
     - authenticated_page: Playwright page logged into Wagtail admin
@@ -138,6 +139,37 @@ def home_page(db, wagtail_site):
         home = Page(title="Home", slug="home")
         root.add_child(instance=home)
     return home
+
+
+@pytest.fixture
+def test_page(db, home_page):
+    """
+    Create a test page under home_page.
+
+    This fixture provides a page that can be used as a target for
+    page operations (edit, delete, publish, etc.) in tests.
+
+    Args:
+        db: pytest-django db fixture
+        home_page: Parent page for the test page
+
+    Returns:
+        Page: A test page under home_page
+
+    Example:
+        def test_edit_page(authenticated_page, server_url, test_page):
+            page_admin = PageAdminPage(authenticated_page, server_url)
+            page_admin.edit_page(test_page.id)
+            # Now on edit page for test_page
+    """
+    from wagtail.models import Page
+
+    page = Page(
+        title="Test Page",
+        slug="test-page",
+    )
+    home_page.add_child(instance=page)
+    return page
 
 
 @pytest.fixture
