@@ -358,3 +358,69 @@ class TestPageAdminDeletePageE2E:
         url = page_admin.delete_page_url(page_id=42)
 
         assert url == "/admin/pages/42/delete/"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestPageAdminGetLiveUrlE2E:
+    """E2E tests for PageAdminPage.get_live_url()."""
+
+    def test_get_live_url_returns_url_for_published_page(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test get_live_url returns URL for a published page."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # Create and publish a page
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Published Page For URL",
+            slug="published-page-for-url",
+            publish=True,
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Published Page For URL")
+
+        # Navigate to edit the page
+        page_admin.edit_page(created_page.id)
+
+        # Get the live URL
+        live_url = page_admin.get_live_url()
+
+        # Should return a URL containing the slug
+        assert live_url is not None
+        assert "published-page-for-url" in live_url
+
+    def test_get_live_url_returns_none_for_draft_page(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test get_live_url returns None for a draft (unpublished) page."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # Create a draft page (not published)
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Draft Page For URL",
+            slug="draft-page-for-url",
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Draft Page For URL")
+
+        # Navigate to edit the page
+        page_admin.edit_page(created_page.id)
+
+        # Get the live URL
+        live_url = page_admin.get_live_url()
+
+        # Should return None for unpublished page
+        assert live_url is None

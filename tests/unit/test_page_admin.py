@@ -71,6 +71,32 @@ class TestPageAdminPageUrls:
         assert url == "/admin/pages/42/edit/preview/"
 
 
+class TestPageAdminPageGetLiveUrl:
+    """Tests for PageAdminPage get_live_url method."""
+
+    def test_get_live_url_returns_href(self, mock_page, test_url):
+        """get_live_url should return href when Live status link exists."""
+        mock_link = mock_page.get_by_role.return_value
+        mock_link.count.return_value = 1
+        mock_link.get_attribute.return_value = "/my-page/"
+
+        page_admin = PageAdminPage(mock_page, test_url)
+        url = page_admin.get_live_url()
+
+        mock_page.get_by_role.assert_called_with("link", name="Live")
+        assert url == "/my-page/"
+
+    def test_get_live_url_returns_none_when_not_found(self, mock_page, test_url):
+        """get_live_url should return None when Live status link not found."""
+        mock_link = mock_page.get_by_role.return_value
+        mock_link.count.return_value = 0
+
+        page_admin = PageAdminPage(mock_page, test_url)
+        url = page_admin.get_live_url()
+
+        assert url is None
+
+
 class TestPageAdminPageEditPage:
     """Tests for PageAdminPage edit_page method."""
 
