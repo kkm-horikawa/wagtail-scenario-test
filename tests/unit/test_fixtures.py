@@ -95,6 +95,31 @@ class TestHomePageFixture:
 
 
 @pytest.mark.django_db
+class TestTestPageFixture:
+    """Tests for test_page fixture."""
+
+    def test_returns_page(self, test_page):
+        """test_page should return a Page instance."""
+        from wagtail.models import Page
+
+        assert isinstance(test_page, Page)
+
+    def test_page_is_child_of_home(self, test_page):
+        """test_page should be a child of home page (depth=3)."""
+        assert test_page.depth == 3
+
+    def test_has_correct_title(self, test_page):
+        """test_page should have correct title."""
+        assert test_page.title == "Test Page"
+        assert test_page.slug == "test-page"
+
+    def test_parent_is_home_page(self, test_page, home_page):
+        """test_page should be a child of home_page."""
+        parent = test_page.get_parent()
+        assert parent.id == home_page.id
+
+
+@pytest.mark.django_db
 class TestAdminUserE2EFixture:
     """Tests for admin_user_e2e fixture."""
 
