@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from wagtail_scenario_test.page_objects.wagtail_admin import (
+    PageAdminPage,
     SnippetAdminPage,
     WagtailAdminPage,
 )
@@ -96,6 +97,26 @@ class WagtailAdmin:
             app_name=app_name,
             model_name=model_name,
         )
+
+    def pages(self) -> PageAdminPage:
+        """
+        Get a PageAdminPage for page operations.
+
+        Returns:
+            PageAdminPage for creating and managing pages
+
+        Example:
+            # Create a child page
+            admin.pages().create_child_page(
+                parent_page_id=1,
+                page_type="testapp.TestPage",
+                title="New Page",
+            )
+
+            # Navigate to page explorer
+            admin.pages().navigate_to_explorer()
+        """
+        return PageAdminPage(self.page, self.base_url)
 
     # =========================================================================
     # Delegate common admin operations
