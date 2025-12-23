@@ -90,6 +90,28 @@ class LinkBlock(StructBlock):
         label = "Link"
 
 
+class CardBlock(StructBlock):
+    """A card with title and description."""
+
+    title = CharBlock(required=True)
+    description = TextBlock(required=False)
+
+    class Meta:
+        icon = "doc-full"
+        label = "Card"
+
+
+class SectionBlock(StructBlock):
+    """A section with heading and cards (for deep nesting tests)."""
+
+    heading = CharBlock(required=True)
+    cards = ListBlock(CardBlock())
+
+    class Meta:
+        icon = "folder-open-inverse"
+        label = "Section"
+
+
 class AdvancedStreamFieldPage(Page):
     """Page model with advanced StreamField blocks for testing."""
 
@@ -106,6 +128,8 @@ class AdvancedStreamFieldPage(Page):
             ("items", ListBlock(CharBlock(label="Item"))),
             # ImageChooserBlock
             ("image", ImageChooserBlock()),
+            # Deep nesting: StructBlock > ListBlock > StructBlock
+            ("section", SectionBlock()),
         ],
         use_json_field=True,
         blank=True,

@@ -348,3 +348,457 @@ class TestStreamFieldHelperMixedBlocksE2E:
         assert created_page.body[1].value["title"] == "Hero Title"
         assert created_page.body[2].block_type == "links"
         assert created_page.body[2].value[0]["title"] == "First Link"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperSimpleListBlockE2E:
+    """E2E tests for simple ListBlock (CharBlock items)."""
+
+    def test_simple_list_block_single_item(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test ListBlock with simple CharBlock items."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Simple List Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Items block (ListBlock of CharBlock)
+        index = sf.add_block("Items")
+
+        # Fill the first item (default)
+        sf.block(index).item(0).fill("First Item")
+
+        # Verify value
+        assert sf.block(index).item(0).value() == "First Item"
+
+        # Save
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("simple-list-page")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Simple List Page")
+        assert created_page.body[0].block_type == "items"
+        assert created_page.body[0].value[0] == "First Item"
+
+    def test_simple_list_block_multiple_items(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test adding multiple items to a simple ListBlock."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Multi Item List Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+        index = sf.add_block("Items")
+
+        # Fill first item
+        sf.block(index).item(0).fill("Apple")
+
+        # Add and fill more items
+        sf.block(index).add_item()
+        sf.block(index).item(1).fill("Banana")
+
+        sf.block(index).add_item()
+        sf.block(index).item(2).fill("Cherry")
+
+        # Verify item count
+        assert sf.block(index).item_count() == 3
+
+        # Verify values
+        assert sf.block(index).item(0).value() == "Apple"
+        assert sf.block(index).item(1).value() == "Banana"
+        assert sf.block(index).item(2).value() == "Cherry"
+
+        # Save
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("multi-item-list-page")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Multi Item List Page")
+        assert len(created_page.body[0].value) == 3
+        assert created_page.body[0].value[0] == "Apple"
+        assert created_page.body[0].value[1] == "Banana"
+        assert created_page.body[0].value[2] == "Cherry"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperTextBlockE2E:
+    """E2E tests for TextBlock (textarea)."""
+
+    def test_text_block_fill_and_save(self, authenticated_page, server_url, home_page):
+        """Test filling a TextBlock (quote) with multiline content."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Quote Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Quote block (TextBlock)
+        index = sf.add_block("Quote")
+
+        # Fill with multiline text
+        quote_text = "To be or not to be,\nthat is the question."
+        sf.block(index).fill(quote_text)
+
+        # Save
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("quote-page")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Quote Page")
+        assert created_page.body[0].block_type == "quote"
+        assert "To be or not to be" in created_page.body[0].value
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperDeepNestingE2E:
+    """E2E tests for deeply nested block structures."""
+
+    def test_struct_with_list_of_structs(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test StructBlock > ListBlock > StructBlock nesting."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Deep Nesting Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Section block (StructBlock with heading and ListBlock of CardBlocks)
+        index = sf.add_block("Section")
+
+        # Fill section heading
+        sf.block(index).struct("heading").fill("Featured Cards")
+
+        # Fill first card (default item in ListBlock)
+        sf.block(index).struct("cards").item(0).struct("title").fill("Card 1")
+        sf.block(index).struct("cards").item(0).struct("description").fill(
+            "First card description"
+        )
+
+        # Verify values at deep nesting level
+        assert sf.block(index).struct("heading").value() == "Featured Cards"
+        assert sf.block(index).struct("cards").item(0).struct("title").value() == (
+            "Card 1"
+        )
+
+        # Save
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("deep-nesting-page")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Deep Nesting Page")
+        assert created_page.body[0].block_type == "section"
+        assert created_page.body[0].value["heading"] == "Featured Cards"
+        assert created_page.body[0].value["cards"][0]["title"] == "Card 1"
+        assert (
+            created_page.body[0].value["cards"][0]["description"]
+            == "First card description"
+        )
+
+    def test_deep_nesting_multiple_items(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test adding multiple items in deeply nested ListBlock."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Multi Card Section")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add Section block
+        index = sf.add_block("Section")
+        sf.block(index).struct("heading").fill("Our Team")
+
+        # Fill first card
+        sf.block(index).struct("cards").item(0).struct("title").fill("Alice")
+        sf.block(index).struct("cards").item(0).struct("description").fill("Developer")
+
+        # Add second card
+        sf.block(index).struct("cards").add_item()
+        sf.block(index).struct("cards").item(1).struct("title").fill("Bob")
+        sf.block(index).struct("cards").item(1).struct("description").fill("Designer")
+
+        # Add third card
+        sf.block(index).struct("cards").add_item()
+        sf.block(index).struct("cards").item(2).struct("title").fill("Charlie")
+        sf.block(index).struct("cards").item(2).struct("description").fill("Manager")
+
+        # Verify item count in nested ListBlock
+        assert sf.block(index).struct("cards").item_count() == 3
+
+        # Save
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("multi-card-section")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Multi Card Section")
+        cards = created_page.body[0].value["cards"]
+        assert len(cards) == 3
+        assert cards[0]["title"] == "Alice"
+        assert cards[1]["title"] == "Bob"
+        assert cards[2]["title"] == "Charlie"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperValueMethodE2E:
+    """E2E tests for value() method across different block types."""
+
+    def test_value_method_simple_block(self, authenticated_page, server_url, home_page):
+        """Test value() on simple CharBlock."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        index = sf.add_block("Heading")
+        sf.block(index).fill("Test Heading")
+
+        # Verify value() returns what was filled
+        assert sf.block(index).value() == "Test Heading"
+
+    def test_value_method_struct_block(self, authenticated_page, server_url, home_page):
+        """Test value() on StructBlock fields."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        index = sf.add_block("Hero Section")
+        sf.block(index).struct("title").fill("Hero Title")
+        sf.block(index).struct("subtitle").fill("Hero Subtitle")
+
+        # Verify values
+        assert sf.block(index).struct("title").value() == "Hero Title"
+        assert sf.block(index).struct("subtitle").value() == "Hero Subtitle"
+
+    def test_value_method_list_block(self, authenticated_page, server_url, home_page):
+        """Test value() on ListBlock items."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        index = sf.add_block("Items")
+        sf.block(index).item(0).fill("Item One")
+
+        sf.block(index).add_item()
+        sf.block(index).item(1).fill("Item Two")
+
+        # Verify values
+        assert sf.block(index).item(0).value() == "Item One"
+        assert sf.block(index).item(1).value() == "Item Two"
+
+    def test_value_method_deep_nesting(self, authenticated_page, server_url, home_page):
+        """Test value() on deeply nested fields."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        index = sf.add_block("Section")
+        sf.block(index).struct("heading").fill("Section Heading")
+        sf.block(index).struct("cards").item(0).struct("title").fill("Card Title")
+        sf.block(index).struct("cards").item(0).struct("description").fill(
+            "Card Description"
+        )
+
+        # Verify deeply nested values
+        assert sf.block(index).struct("heading").value() == "Section Heading"
+        assert (
+            sf.block(index).struct("cards").item(0).struct("title").value()
+            == "Card Title"
+        )
+        assert (
+            sf.block(index).struct("cards").item(0).struct("description").value()
+            == "Card Description"
+        )
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperComplexScenarioE2E:
+    """E2E tests for complex real-world scenarios."""
+
+    def test_full_page_with_all_block_types(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test creating a page with all available block types."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(
+            home_page.id, "testapp", "advancedstreamfieldpage"
+        )
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Complete Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # 1. Add Heading (simple CharBlock)
+        heading_idx = sf.add_block("Heading")
+        sf.block(heading_idx).fill("Welcome to Our Website")
+
+        # 2. Add Quote (TextBlock)
+        quote_idx = sf.add_block("Quote")
+        sf.block(quote_idx).fill("Innovation distinguishes leaders from followers.")
+
+        # 3. Add Hero Section (StructBlock)
+        hero_idx = sf.add_block("Hero Section")
+        sf.block(hero_idx).struct("title").fill("Main Hero")
+        sf.block(hero_idx).struct("subtitle").fill("Your journey starts here")
+
+        # 4. Add Links (ListBlock > StructBlock)
+        links_idx = sf.add_block("Links")
+        sf.block(links_idx).item(0).struct("title").fill("Documentation")
+        sf.block(links_idx).item(0).struct("url").fill("https://docs.example.com")
+        sf.block(links_idx).add_item()
+        sf.block(links_idx).item(1).struct("title").fill("Support")
+        sf.block(links_idx).item(1).struct("url").fill("https://support.example.com")
+
+        # 5. Add Items (ListBlock > CharBlock)
+        items_idx = sf.add_block("Items")
+        sf.block(items_idx).item(0).fill("Feature 1")
+        sf.block(items_idx).add_item()
+        sf.block(items_idx).item(1).fill("Feature 2")
+        sf.block(items_idx).add_item()
+        sf.block(items_idx).item(2).fill("Feature 3")
+
+        # 6. Add Section (StructBlock > ListBlock > StructBlock)
+        section_idx = sf.add_block("Section")
+        sf.block(section_idx).struct("heading").fill("Team Members")
+        sf.block(section_idx).struct("cards").item(0).struct("title").fill("John Doe")
+        sf.block(section_idx).struct("cards").item(0).struct("description").fill("CEO")
+        sf.block(section_idx).struct("cards").add_item()
+        sf.block(section_idx).struct("cards").item(1).struct("title").fill("Jane Doe")
+        sf.block(section_idx).struct("cards").item(1).struct("description").fill("CTO")
+
+        # Verify block count
+        assert sf.get_block_count() == 6
+
+        # Save
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("complete-page")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify all content was saved correctly
+        from tests.testapp.models import AdvancedStreamFieldPage
+
+        created_page = AdvancedStreamFieldPage.objects.get(title="Complete Page")
+
+        # Check all blocks
+        assert len(created_page.body) == 6
+
+        # Heading
+        assert created_page.body[0].block_type == "heading"
+        assert created_page.body[0].value == "Welcome to Our Website"
+
+        # Quote
+        assert created_page.body[1].block_type == "quote"
+        assert "Innovation" in created_page.body[1].value
+
+        # Hero
+        assert created_page.body[2].block_type == "hero"
+        assert created_page.body[2].value["title"] == "Main Hero"
+
+        # Links
+        assert created_page.body[3].block_type == "links"
+        assert len(created_page.body[3].value) == 2
+        assert created_page.body[3].value[0]["title"] == "Documentation"
+
+        # Items
+        assert created_page.body[4].block_type == "items"
+        assert len(created_page.body[4].value) == 3
+        assert created_page.body[4].value[0] == "Feature 1"
+
+        # Section (deep nesting)
+        assert created_page.body[5].block_type == "section"
+        assert created_page.body[5].value["heading"] == "Team Members"
+        assert len(created_page.body[5].value["cards"]) == 2
+        assert created_page.body[5].value["cards"][0]["title"] == "John Doe"
+        assert created_page.body[5].value["cards"][1]["title"] == "Jane Doe"
