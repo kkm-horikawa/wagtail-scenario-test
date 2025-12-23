@@ -62,6 +62,14 @@ class TestPageAdminPageUrls:
 
         assert url == "/admin/pages/42/delete/"
 
+    def test_preview_url(self, mock_page, test_url):
+        """preview_url should return correct URL."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        url = page_admin.preview_url(page_id=42)
+
+        assert url == "/admin/pages/42/edit/preview/"
+
 
 class TestPageAdminPageEditPage:
     """Tests for PageAdminPage edit_page method."""
