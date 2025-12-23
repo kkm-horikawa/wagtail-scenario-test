@@ -247,6 +247,75 @@ class TestPageAdminPublishE2E:
 
 @pytest.mark.e2e
 @pytest.mark.django_db(transaction=True)
+class TestPageAdminUnpublishE2E:
+    """E2E tests for PageAdminPage.unpublish()."""
+
+    def test_unpublish_live_page(self, authenticated_page, server_url, home_page):
+        """Test unpublishing a live page through the admin UI."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # First create and publish a page
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Unpublish",
+            slug="page-to-unpublish",
+            publish=True,
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Unpublish")
+        assert created_page.live  # Should be live initially
+
+        # Unpublish the page
+        page_admin.unpublish(page_id=created_page.id)
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify the page is no longer live
+        created_page.refresh_from_db()
+        assert not created_page.live
+
+    def test_unpublish_from_edit_page(self, authenticated_page, server_url, home_page):
+        """Test unpublishing a page when already on the edit page."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # First create and publish a page
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Unpublish From Edit",
+            slug="page-to-unpublish-from-edit",
+            publish=True,
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Unpublish From Edit")
+        assert created_page.live
+
+        # Navigate to edit page first
+        page_admin.edit_page(created_page.id)
+
+        # Then unpublish without passing page_id
+        page_admin.unpublish()
+
+        # Should show success message
+        page_admin.assert_success_message()
+
+        # Verify the page is no longer live
+        created_page.refresh_from_db()
+        assert not created_page.live
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
 class TestPageAdminDeletePageE2E:
     """E2E tests for PageAdminPage.delete_page()."""
 

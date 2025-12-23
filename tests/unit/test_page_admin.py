@@ -124,6 +124,65 @@ class TestPageAdminPagePublish:
         mock_page.wait_for_load_state.assert_called()
 
 
+class TestPageAdminPageUnpublish:
+    """Tests for PageAdminPage unpublish method."""
+
+    def test_unpublish_with_page_id_and_confirm(self, mock_page, test_url):
+        """unpublish with page_id should navigate, open dropdown, and confirm."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.unpublish(page_id=5)
+
+        # Should navigate to edit page first
+        mock_page.goto.assert_called_with(f"{test_url}/admin/pages/5/edit/")
+
+        # Should open "Actions" dropdown (exact match)
+        mock_page.get_by_role.assert_any_call("button", name="Actions", exact=True)
+
+        # Should click Unpublish link and Yes, unpublish button
+        mock_page.get_by_role.assert_any_call("link", name="Unpublish", exact=True)
+        mock_page.get_by_role.assert_any_call("button", name="Yes, unpublish")
+
+    def test_unpublish_without_page_id(self, mock_page, test_url):
+        """unpublish without page_id should not navigate, just unpublish."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.unpublish()
+
+        # Should NOT navigate (no goto call for edit page)
+        for call in mock_page.goto.call_args_list:
+            assert "/edit/" not in str(call)
+
+        # Should open "Actions" dropdown and click Unpublish link
+        mock_page.get_by_role.assert_any_call("button", name="Actions", exact=True)
+        mock_page.get_by_role.assert_any_call("link", name="Unpublish", exact=True)
+
+    def test_unpublish_without_confirm(self, mock_page, test_url):
+        """unpublish with confirm=False should not click Yes, unpublish."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.unpublish(page_id=5, confirm=False)
+
+        # Should open "Actions" dropdown and click Unpublish link
+        mock_page.get_by_role.assert_any_call("button", name="Actions", exact=True)
+        mock_page.get_by_role.assert_any_call("link", name="Unpublish", exact=True)
+
+        # Should NOT call Yes, unpublish
+        for call in mock_page.get_by_role.call_args_list:
+            args, kwargs = call
+            if args[0] == "button" and kwargs.get("name") == "Yes, unpublish":
+                raise AssertionError("Yes, unpublish should not be clicked")
+
+    def test_unpublish_waits_for_navigation(self, mock_page, test_url):
+        """unpublish should wait for navigation to complete."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.unpublish(page_id=10)
+
+        # Should call wait_for_load_state (from wait_for_navigation)
+        mock_page.wait_for_load_state.assert_called()
+
+
 class TestPageAdminPageDeletePage:
     """Tests for PageAdminPage delete_page method."""
 
