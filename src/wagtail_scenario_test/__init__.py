@@ -23,6 +23,7 @@ from wagtail_scenario_test.page_objects import (
     BasePage,
     PageAdminPage,
     SnippetAdminPage,
+    StreamFieldHelper,
     WagtailAdmin,
     WagtailAdminPage,
 )
@@ -34,4 +35,5 @@ __all__ = [
     "WagtailAdminPage",
     "SnippetAdminPage",
     "PageAdminPage",
+    "StreamFieldHelper",
 ]

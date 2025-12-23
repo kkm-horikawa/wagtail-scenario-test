@@ -2,6 +2,8 @@
 
 from django.db import models
 from wagtail.admin.panels import FieldPanel
+from wagtail.blocks import CharBlock, RichTextBlock, TextBlock
+from wagtail.fields import StreamField
 from wagtail.models import Page
 from wagtail.snippets.models import register_snippet
 
@@ -33,3 +35,24 @@ class TestPage(Page):
 
     class Meta:
         verbose_name = "Test Page"
+
+
+class StreamFieldPage(Page):
+    """Page model with StreamField for testing StreamFieldHelper."""
+
+    body = StreamField(
+        [
+            ("heading", CharBlock(form_classname="title")),
+            ("paragraph", RichTextBlock()),
+            ("quote", TextBlock()),
+        ],
+        use_json_field=True,
+        blank=True,
+    )
+
+    content_panels = Page.content_panels + [
+        FieldPanel("body"),
+    ]
+
+    class Meta:
+        verbose_name = "StreamField Page"
