@@ -75,20 +75,20 @@ class TestPageAdminPageGetLiveUrl:
     """Tests for PageAdminPage get_live_url method."""
 
     def test_get_live_url_returns_href(self, mock_page, test_url):
-        """get_live_url should return href when Live status link exists."""
-        mock_link = mock_page.get_by_role.return_value
+        """get_live_url should return href when status link exists."""
+        mock_link = mock_page.locator.return_value
         mock_link.count.return_value = 1
-        mock_link.get_attribute.return_value = "/my-page/"
+        mock_link.first.get_attribute.return_value = "/my-page/"
 
         page_admin = PageAdminPage(mock_page, test_url)
         url = page_admin.get_live_url()
 
-        mock_page.get_by_role.assert_called_with("link", name="Live")
+        mock_page.locator.assert_called_with("a.page-status-tag[href]")
         assert url == "/my-page/"
 
     def test_get_live_url_returns_none_when_not_found(self, mock_page, test_url):
-        """get_live_url should return None when Live status link not found."""
-        mock_link = mock_page.get_by_role.return_value
+        """get_live_url should return None when status link not found."""
+        mock_link = mock_page.locator.return_value
         mock_link.count.return_value = 0
 
         page_admin = PageAdminPage(mock_page, test_url)
@@ -116,6 +116,57 @@ class TestPageAdminPageEditPage:
 
         # Should call wait_for_load_state (from wait_for_navigation)
         mock_page.wait_for_load_state.assert_called()
+
+
+class TestPageAdminPageVisitPreview:
+    """Tests for PageAdminPage visit_preview method."""
+
+    def test_visit_preview_navigates_to_preview_url(self, mock_page, test_url):
+        """visit_preview should navigate to the preview URL."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.visit_preview(page_id=5)
+
+        mock_page.goto.assert_called_with(f"{test_url}/admin/pages/5/edit/preview/")
+
+    def test_visit_preview_waits_for_navigation(self, mock_page, test_url):
+        """visit_preview should wait for navigation to complete."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.visit_preview(page_id=10)
+
+        mock_page.wait_for_load_state.assert_called()
+
+
+class TestPageAdminPageVisitLive:
+    """Tests for PageAdminPage visit_live method."""
+
+    def test_visit_live_navigates_to_live_url(self, mock_page, test_url):
+        """visit_live should navigate to the live URL."""
+        mock_link = mock_page.locator.return_value
+        mock_link.count.return_value = 1
+        mock_link.first.get_attribute.return_value = "/my-page/"
+
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.visit_live(page_id=5)
+
+        # Should first navigate to edit page
+        mock_page.goto.assert_any_call(f"{test_url}/admin/pages/5/edit/")
+        # Then navigate to live URL
+        mock_page.goto.assert_called_with(f"{test_url}/my-page/")
+
+    def test_visit_live_raises_error_when_not_published(self, mock_page, test_url):
+        """visit_live should raise ValueError when page has no live URL."""
+        import pytest
+
+        mock_link = mock_page.locator.return_value
+        mock_link.count.return_value = 0
+
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        with pytest.raises(ValueError, match="not published or has no routable URL"):
+            page_admin.visit_live(page_id=5)
 
 
 class TestPageAdminPagePublish:

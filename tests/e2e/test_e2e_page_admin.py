@@ -424,3 +424,96 @@ class TestPageAdminGetLiveUrlE2E:
 
         # Should return None for unpublished page
         assert live_url is None
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestPageAdminVisitPreviewE2E:
+    """E2E tests for PageAdminPage.visit_preview()."""
+
+    def test_visit_preview_navigates_to_preview(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test visit_preview navigates to the preview URL."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # Create a page
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Preview",
+            slug="page-to-preview",
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Preview")
+
+        # Visit preview
+        page_admin.visit_preview(created_page.id)
+
+        # Should be on the preview URL
+        assert f"/admin/pages/{created_page.id}/edit/preview/" in authenticated_page.url
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestPageAdminVisitLiveE2E:
+    """E2E tests for PageAdminPage.visit_live()."""
+
+    def test_visit_live_navigates_to_live_page(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test visit_live navigates to the live URL of a published page."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # Create and publish a page
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Visit Live",
+            slug="page-to-visit-live",
+            publish=True,
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Visit Live")
+
+        # Visit live page
+        page_admin.visit_live(created_page.id)
+
+        # Should be on the live URL (contains the slug)
+        assert "page-to-visit-live" in authenticated_page.url
+        # Should not be in admin
+        assert "/admin/" not in authenticated_page.url
+
+    def test_visit_live_raises_error_for_draft_page(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test visit_live raises ValueError for unpublished page."""
+        import pytest as pt
+
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # Create a draft page (not published)
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Draft Page To Visit",
+            slug="draft-page-to-visit",
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Draft Page To Visit")
+
+        # Should raise ValueError
+        with pt.raises(ValueError, match="not published or has no routable URL"):
+            page_admin.visit_live(created_page.id)

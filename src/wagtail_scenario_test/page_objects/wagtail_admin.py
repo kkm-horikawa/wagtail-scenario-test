@@ -534,11 +534,11 @@ class PageAdminPage(WagtailAdminPage):
         """
         Get the live URL of the current page from the editor.
 
-        Must be on a page edit screen. Returns the href of the "Live" status link,
+        Must be on a page edit screen. Returns the href of the status link,
         or None if the page is not published or has no routable URL.
 
-        In Wagtail 7+, published pages show a "Live" status link in the page header
-        that links to the live URL.
+        In Wagtail 7+, published pages show a status link (with aria-label
+        containing "Visit the live page") that links to the live URL.
 
         Returns:
             The live URL of the page, or None if not available.
@@ -548,11 +548,12 @@ class PageAdminPage(WagtailAdminPage):
             url = page_admin.get_live_url()
             # Returns something like "/my-page/" or None if not published
         """
-        # In Wagtail 7+, the "Live" status link points to the live URL
-        link = self.page.get_by_role("link", name="Live")
+        # In Wagtail 7+, the status link has aria-label "Visit the live page"
+        # This is more specific than just "Live" which can match multiple elements
+        link = self.page.locator("a.page-status-tag[href]")
         if link.count() == 0:
             return None
-        return link.get_attribute("href")
+        return link.first.get_attribute("href")
 
     # =========================================================================
     # Page Navigation
@@ -569,6 +570,46 @@ class PageAdminPage(WagtailAdminPage):
             page_admin.edit_page(5)  # Navigate to edit page with ID 5
         """
         self.goto(self.edit_page_url(page_id))
+        self.wait_for_navigation()
+
+    def visit_preview(self, page_id: int) -> None:
+        """
+        Navigate to the preview of a page.
+
+        This opens the page preview in the browser. The preview shows
+        the page as it would appear on the frontend, including any
+        unsaved changes in the editor.
+
+        Args:
+            page_id: The page ID to preview
+
+        Example:
+            page_admin.visit_preview(5)  # Preview page with ID 5
+        """
+        self.goto(self.preview_url(page_id))
+        self.wait_for_navigation()
+
+    def visit_live(self, page_id: int) -> None:
+        """
+        Navigate to the live URL of a published page.
+
+        This first navigates to the edit page to get the live URL,
+        then navigates to that URL. Requires the page to be published.
+
+        Args:
+            page_id: The page ID to view live
+
+        Raises:
+            ValueError: If the page is not published or has no live URL
+
+        Example:
+            page_admin.visit_live(5)  # View live page with ID 5
+        """
+        self.edit_page(page_id)
+        live_url = self.get_live_url()
+        if live_url is None:
+            raise ValueError(f"Page {page_id} is not published or has no routable URL")
+        self.goto(live_url)
         self.wait_for_navigation()
 
     # =========================================================================
