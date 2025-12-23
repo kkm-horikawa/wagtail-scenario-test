@@ -84,6 +84,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+.claude
 CLAUDE.md
 
 # uv (library project - no lock file)
