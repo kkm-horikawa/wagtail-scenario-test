@@ -836,3 +836,149 @@ class PageAdminPage(WagtailAdminPage):
         slug = re.sub(r"[\s_]+", "-", slug)
         slug = re.sub(r"-+", "-", slug)
         return slug.strip("-")
+
+
+class StreamFieldHelper:
+    """
+    Helper class for interacting with StreamField blocks in Wagtail admin.
+
+    This helper provides methods for adding, editing, and managing StreamField
+    blocks within a page editor. It is designed to be used in conjunction with
+    PageAdminPage or directly on a page edit form.
+
+    Example:
+        page_admin = PageAdminPage(page, base_url)
+        page_admin.edit_page(page_id)
+
+        # Create helper for the 'body' StreamField
+        sf = StreamFieldHelper(page, "body")
+
+        # Add a heading block
+        index = sf.add_block("Heading")
+        sf.fill_block(index, "My Heading")
+
+        # Add a paragraph block
+        index = sf.add_block("Paragraph")
+        # For RichText, use fill_rich_text_block instead
+
+    Attributes:
+        page: The Playwright Page instance
+        field_name: The name of the StreamField (e.g., "body")
+    """
+
+    def __init__(self, page: Page, field_name: str = "body") -> None:
+        """
+        Initialize the StreamFieldHelper.
+
+        Args:
+            page: Playwright Page instance (browser page)
+            field_name: The name of the StreamField in the model (default: "body")
+        """
+        self.page = page
+        self.field_name = field_name
+
+    def _get_add_button(self):
+        """Get the add block button for this StreamField."""
+        # The add button is inside the field's panel section
+        panel_selector = f"#panel-child-content-{self.field_name}-section"
+        panel = self.page.locator(panel_selector)
+        return panel.locator(".c-sf-add-button").first
+
+    def _get_block_count(self) -> int:
+        """Get the current number of blocks in the StreamField."""
+        count_input = self.page.locator(f"input[name='{self.field_name}-count']")
+        if count_input.count() == 0:
+            return 0
+        value = count_input.input_value()
+        return int(value) if value else 0
+
+    def add_block(self, block_type: str) -> int:
+        """
+        Add a new block to the StreamField.
+
+        Opens the block chooser menu, selects the specified block type,
+        and returns the index of the newly added block.
+
+        Args:
+            block_type: The display name of the block type (e.g., "Heading",
+                "Paragraph", "Quote"). This should match the label shown in
+                the block chooser menu.
+
+        Returns:
+            int: The index of the newly added block (0-based).
+
+        Example:
+            sf = StreamFieldHelper(page, "body")
+            index = sf.add_block("Heading")
+            # index is 0 for the first block, 1 for the second, etc.
+        """
+        # Get current block count before adding
+        current_count = self._get_block_count()
+
+        # Click the add button to open the block chooser
+        add_button = self._get_add_button()
+        add_button.click()
+
+        # Wait for the combobox menu to appear
+        self.page.locator(".w-combobox__menu").wait_for(state="visible")
+
+        # Select the block type from the menu
+        option = self.page.locator("[role='option']").filter(has_text=block_type)
+        option.first.click()
+
+        # Wait for the block to be added
+        self.page.wait_for_timeout(300)
+
+        # Return the index of the new block
+        return current_count
+
+    def fill_block(self, index: int, value: str) -> None:
+        """
+        Fill a simple block (CharBlock, TextBlock) with a value.
+
+        This method works for blocks that have a single input or textarea
+        field, such as CharBlock or TextBlock.
+
+        Args:
+            index: The block index (0-based)
+            value: The value to fill in the block
+
+        Example:
+            sf = StreamFieldHelper(page, "body")
+            index = sf.add_block("Heading")
+            sf.fill_block(index, "My Page Title")
+        """
+        input_selector = f"#{self.field_name}-{index}-value"
+        input_field = self.page.locator(input_selector)
+
+        # Try input first, then textarea
+        if input_field.count() > 0:
+            input_field.fill(value)
+        else:
+            # Try textarea
+            textarea_selector = f"textarea[name='{self.field_name}-{index}-value']"
+            textarea = self.page.locator(textarea_selector)
+            if textarea.count() > 0:
+                textarea.fill(value)
+
+    def get_block_count(self) -> int:
+        """
+        Get the number of blocks in the StreamField.
+
+        Returns:
+            int: The number of blocks currently in the StreamField.
+        """
+        return self._get_block_count()
+
+    def get_block_type(self, index: int) -> str:
+        """
+        Get the type of a block at the specified index.
+
+        Args:
+            index: The block index (0-based)
+
+        Returns:
+            str: The block type identifier (e.g., "heading", "paragraph")
+        """
+        type_input = self.page.locator(f"input[name='{self.field_name}-{index}-type']")
+        return type_input.input_value()

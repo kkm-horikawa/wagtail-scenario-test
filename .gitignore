@@ -89,3 +89,6 @@ CLAUDE.md
 
 # uv (library project - no lock file)
 uv.lock
+
+# Demo project (for investigation)
+demo/
