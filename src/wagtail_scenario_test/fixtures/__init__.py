@@ -397,6 +397,86 @@ def pytest_configure(config):
     )
 
 
+@pytest.fixture
+def test_image(db, wagtail_site):
+    """
+    Create a test image in Wagtail's image library.
+
+    This fixture creates an image that can be used for testing
+    ImageChooserBlock and other image selection functionality.
+
+    Returns:
+        Image: A Wagtail Image instance
+
+    Example:
+        def test_image_chooser(authenticated_page, server_url, test_image):
+            # test_image.title is "Test Image"
+            sf.block(0).click_chooser()
+            sf.select_from_chooser(test_image.title)
+    """
+    from io import BytesIO
+
+    from django.core.files.images import ImageFile
+    from PIL import Image as PILImage
+    from wagtail.images.models import Image
+    from wagtail.models import Collection
+
+    # Ensure root collection exists (required for Wagtail images)
+    if not Collection.objects.exists():
+        Collection.add_root(name="Root")
+
+    # Create a simple test image in memory
+    pil_image = PILImage.new("RGB", (100, 100), color="red")
+    image_io = BytesIO()
+    pil_image.save(image_io, format="PNG")
+    image_io.seek(0)
+
+    # Create Wagtail Image
+    image = Image.objects.create(
+        title="Test Image",
+        file=ImageFile(image_io, name="test_image.png"),
+    )
+    return image
+
+
+@pytest.fixture
+def test_document(db, wagtail_site):
+    """
+    Create a test document in Wagtail's document library.
+
+    This fixture creates a document that can be used for testing
+    DocumentChooserBlock and other document selection functionality.
+
+    Returns:
+        Document: A Wagtail Document instance
+
+    Example:
+        def test_document_chooser(authenticated_page, server_url, test_document):
+            # test_document.title is "Test Document"
+            sf.block(0).click_chooser()
+            sf.select_from_chooser(test_document.title)
+    """
+    from io import BytesIO
+
+    from django.core.files.base import ContentFile
+    from wagtail.documents.models import Document
+    from wagtail.models import Collection
+
+    # Ensure root collection exists (required for Wagtail documents)
+    if not Collection.objects.exists():
+        Collection.add_root(name="Root")
+
+    # Create a simple test document in memory
+    content = BytesIO(b"Test document content")
+
+    # Create Wagtail Document
+    document = Document.objects.create(
+        title="Test Document",
+        file=ContentFile(content.read(), name="test_document.txt"),
+    )
+    return document
+
+
 def pytest_sessionfinish(session, exitstatus):
     """Convert videos to GIFs after test session if --gif flag is set."""
     if not session.config.getoption("--gif", default=False):

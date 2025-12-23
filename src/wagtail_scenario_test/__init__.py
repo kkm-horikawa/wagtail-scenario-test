@@ -21,6 +21,7 @@ __version__ = "0.1.0"
 
 from wagtail_scenario_test.page_objects import (
     BasePage,
+    BlockPath,
     PageAdminPage,
     SnippetAdminPage,
     StreamFieldHelper,
@@ -31,6 +32,7 @@ from wagtail_scenario_test.page_objects import (
 __all__ = [
     "__version__",
     "BasePage",
+    "BlockPath",
     "WagtailAdmin",
     "WagtailAdminPage",
     "SnippetAdminPage",

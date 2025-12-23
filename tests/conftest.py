@@ -61,3 +61,38 @@ def test_url():
 def base_url():
     """Override pytest-base-url fixture for tests."""
     return None
+
+
+@pytest.fixture
+def test_snippet(db, wagtail_site):
+    """
+    Create a test snippet for SnippetChooserBlock testing.
+
+    Returns:
+        TestSnippet: A TestSnippet instance with name "Test Snippet"
+    """
+    from tests.testapp.models import TestSnippet
+
+    snippet = TestSnippet.objects.create(
+        name="Test Snippet",
+        description="A snippet for testing",
+    )
+    return snippet
+
+
+@pytest.fixture
+def test_related_page(db, home_page):
+    """
+    Create a test page for PageChooserBlock testing.
+
+    Returns:
+        Page: A Page instance that can be selected in PageChooser
+    """
+    from wagtail.models import Page
+
+    page = Page(
+        title="Related Test Page",
+        slug="related-test-page",
+    )
+    home_page.add_child(instance=page)
+    return page

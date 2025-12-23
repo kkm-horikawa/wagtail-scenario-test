@@ -78,6 +78,11 @@ dmypy.json
 screenshots/
 test-results/
 
+# Wagtail media (test artifacts)
+documents/
+images/
+original_images/
+
 # OS
 .DS_Store
 Thumbs.db
