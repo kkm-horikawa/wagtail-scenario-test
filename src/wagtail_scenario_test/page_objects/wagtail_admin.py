@@ -646,7 +646,10 @@ class PageAdminPage(WagtailAdminPage):
         self.page.get_by_role("link", name="Delete", exact=True).click()
 
         if confirm:
-            self.page.get_by_role("button", name="Yes, delete").click()
+            # Wait for confirmation page to load before clicking confirm button
+            confirm_button = self.page.get_by_role("button", name="Yes, delete")
+            confirm_button.wait_for(state="visible", timeout=10000)
+            confirm_button.click()
         self.wait_for_navigation()
 
     # =========================================================================
@@ -723,7 +726,10 @@ class PageAdminPage(WagtailAdminPage):
         self.page.get_by_role("link", name="Unpublish", exact=True).click()
 
         if confirm:
-            self.page.get_by_role("button", name="Yes, unpublish").click()
+            # Wait for confirmation page to load before clicking confirm button
+            confirm_button = self.page.get_by_role("button", name="Yes, unpublish")
+            confirm_button.wait_for(state="visible", timeout=10000)
+            confirm_button.click()
         self.wait_for_navigation()
 
     # =========================================================================
