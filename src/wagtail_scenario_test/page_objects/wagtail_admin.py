@@ -575,6 +575,43 @@ class PageAdminPage(WagtailAdminPage):
         self.wait_for_navigation()
 
     # =========================================================================
+    # Page Publishing
+    # =========================================================================
+
+    def publish(self, page_id: int | None = None) -> None:
+        """
+        Publish a page.
+
+        If page_id is provided, navigates to the edit page first.
+        Otherwise, assumes we are already on the page edit screen.
+
+        In Wagtail, the Publish button is in a dropdown menu at the bottom
+        of the page editor. This method opens the dropdown and clicks Publish.
+
+        Args:
+            page_id: Optional page ID to publish. If provided, navigates to
+                the edit page first. If None, assumes already on edit page.
+
+        Example:
+            # Publish a specific page by ID
+            page_admin.publish(page_id=5)
+
+            # Or navigate to edit page first, then publish
+            page_admin.edit_page(5)
+            # ... make some edits ...
+            page_admin.publish()
+        """
+        if page_id is not None:
+            self.edit_page(page_id)
+
+        # Publish is in the "More actions" dropdown menu at the bottom of the editor
+        # This dropdown contains Save draft, Publish, and other save-related actions
+        # Note: The "Actions" dropdown (at the top) contains Delete, Copy, Move
+        self.page.get_by_role("button", name="More actions").click()
+        self.page.get_by_role("button", name="Publish").click()
+        self.wait_for_navigation()
+
+    # =========================================================================
     # Page Creation
     # =========================================================================
 

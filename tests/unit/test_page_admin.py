@@ -84,6 +84,46 @@ class TestPageAdminPageEditPage:
         mock_page.wait_for_load_state.assert_called()
 
 
+class TestPageAdminPagePublish:
+    """Tests for PageAdminPage publish method."""
+
+    def test_publish_with_page_id(self, mock_page, test_url):
+        """publish with page_id should navigate to edit page and click Publish."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.publish(page_id=5)
+
+        # Should navigate to edit page first
+        mock_page.goto.assert_called_with(f"{test_url}/admin/pages/5/edit/")
+
+        # Should open "More actions" dropdown and click Publish button
+        mock_page.get_by_role.assert_any_call("button", name="More actions")
+        mock_page.get_by_role.assert_any_call("button", name="Publish")
+
+    def test_publish_without_page_id(self, mock_page, test_url):
+        """publish without page_id should not navigate, just click Publish."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.publish()
+
+        # Should NOT navigate (no goto call for edit page)
+        for call in mock_page.goto.call_args_list:
+            assert "/edit/" not in str(call)
+
+        # Should open "More actions" dropdown and click Publish button
+        mock_page.get_by_role.assert_any_call("button", name="More actions")
+        mock_page.get_by_role.assert_any_call("button", name="Publish")
+
+    def test_publish_waits_for_navigation(self, mock_page, test_url):
+        """publish should wait for navigation to complete."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.publish(page_id=10)
+
+        # Should call wait_for_load_state (from wait_for_navigation)
+        mock_page.wait_for_load_state.assert_called()
+
+
 class TestPageAdminPageDeletePage:
     """Tests for PageAdminPage delete_page method."""
 
