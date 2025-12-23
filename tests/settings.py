@@ -1,6 +1,7 @@
 """Django settings for tests."""
 
 import os
+import tempfile
 
 # Build paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,10 +66,15 @@ TEMPLATES = [
 ]
 
 # Database
+# Use file-based SQLite for E2E tests to avoid threading issues
+# with in-memory SQLite on certain Python/Django version combinations
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
+        "NAME": tempfile.mktemp(suffix=".db"),
+        "TEST": {
+            "NAME": tempfile.mktemp(suffix=".db"),
+        },
     }
 }
 
