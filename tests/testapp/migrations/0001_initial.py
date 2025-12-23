@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('wagtailcore', '0096_referenceindex_referenceindex_source_object_and_more'),
+        ('wagtailcore', '0094_alter_page_locale'),
     ]
 
     operations = [
