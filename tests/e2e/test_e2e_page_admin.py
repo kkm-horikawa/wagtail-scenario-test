@@ -1,30 +1,8 @@
 """E2E tests for PageAdminPage."""
 
 import pytest
-from wagtail.models import Page
 
 from wagtail_scenario_test import PageAdminPage
-
-
-@pytest.fixture
-def home_page(db, wagtail_site):
-    """Get or create a home page under the root page."""
-    root = Page.objects.get(depth=1)
-    # Check if a page already exists under root
-    home = root.get_children().first()
-    if home is None:
-        # Create a simple home page
-        home = Page(title="Home", slug="home")
-        root.add_child(instance=home)
-    # Make sure the TestPage model is allowed as a child
-    # by returning a page that can have TestPage children
-    return home
-
-
-@pytest.fixture
-def root_page(db, wagtail_site):
-    """Get the root page for creating test pages."""
-    return Page.objects.get(depth=1)
 
 
 @pytest.mark.e2e
