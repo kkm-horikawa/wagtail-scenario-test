@@ -957,6 +957,13 @@ class BlockPath:
         field = self._helper.page.locator(selector)
         if field.count() > 0:
             return field.input_value()
+
+        # Try textarea for TextBlock, etc.
+        name = selector[1:]  # Remove # prefix to get name
+        textarea = self._helper.page.locator(f"textarea[name='{name}']")
+        if textarea.count() > 0:
+            return textarea.input_value()
+
         return ""
 
     def click_chooser(self) -> None:
@@ -991,26 +998,50 @@ class BlockPath:
             new_index = sf.block(0).add_item()
             sf.block(0).item(new_index).struct("title").fill("New Card")
         """
-        # Get current item count
+        # Determine the count input name
         if "-value" in self._id:
             count_name = f"{self._id}-count"
         else:
             count_name = f"{self._id}-value-count"
+
+        # Get current item count
         count_input = self._helper.page.locator(f"input[name='{count_name}']")
         current_count = 0
         if count_input.count() > 0:
             val = count_input.input_value()
             current_count = int(val) if val else 0
 
-        # Find and click the add button
-        # The add button is typically in the list container
-        container_selector = f"[id^='{self._id}']"
-        add_button = (
-            self._helper.page.locator(container_selector)
-            .locator("button")
-            .filter(has_text="Add")
-            .first
-        )
+        path_parts = self._id.split("-")
+
+        # Check if we're at a struct field level (e.g., body-0-value-cards)
+        # vs block level (e.g., body-0)
+        if "-value-" in self._id and not path_parts[-1].isdigit():
+            # Struct field level - use data-contentpath
+            field_name = path_parts[-1]
+            container = self._helper.page.locator(f"[data-contentpath='{field_name}']")
+            add_button = container.locator(".c-sf-add-button").last
+        else:
+            # Block level - find the block's panel by getting the panel ID
+            # from the count input's ancestor, then find add button inside
+            if count_input.count() > 0:
+                # Get the panel ID from JavaScript
+                panel_id = count_input.evaluate("""el => {
+                    let current = el;
+                    while (current) {
+                        current = current.parentElement;
+                        if (current && current.classList.contains('w-panel')) {
+                            return current.id;
+                        }
+                    }
+                    return null;
+                }""")
+                if panel_id:
+                    container = self._helper.page.locator(f"#{panel_id}")
+                    add_button = container.locator(".c-sf-add-button").last
+                else:
+                    add_button = self._helper.page.locator("nonexistent")
+            else:
+                add_button = self._helper.page.locator("nonexistent")
 
         if add_button.count() > 0:
             add_button.click()
@@ -1115,10 +1146,10 @@ class StreamFieldHelper:
         return BlockPath(self, f"{self.field_name}-{index}")
 
     def _get_add_button(self):
-        """Get the add block button for this StreamField."""
+        """Get the add block button for this StreamField (last one to append)."""
         panel_selector = f"#panel-child-content-{self.field_name}-section"
         panel = self.page.locator(panel_selector)
-        return panel.locator(".c-sf-add-button").first
+        return panel.locator(".c-sf-add-button").last
 
     def _get_block_count(self) -> int:
         """Get the current number of blocks in the StreamField."""
@@ -1155,8 +1186,9 @@ class StreamFieldHelper:
 
         self.page.locator(".w-combobox__menu").wait_for(state="visible")
 
-        option = self.page.locator("[role='option']").filter(has_text=block_type)
-        option.first.click()
+        # Use exact matching to avoid partial matches (e.g., "Section" vs "Hero")
+        option = self.page.get_by_role("option", name=block_type, exact=True)
+        option.click()
 
         self.page.wait_for_timeout(300)
 

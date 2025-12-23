@@ -40,12 +40,11 @@ class TestStreamFieldHelperAddBlock:
             mock_count_input,  # For _get_block_count
             mock_panel,  # For panel selector
             MagicMock(),  # For menu wait
-            mock_option,  # For option filter
         ]
-        mock_panel.locator.return_value.first = mock_add_button
+        mock_panel.locator.return_value.last = mock_add_button
         mock_count_input.count.return_value = 1
         mock_count_input.input_value.return_value = "0"
-        mock_option.first = mock_option
+        mock_page.get_by_role.return_value = mock_option
 
         helper = StreamFieldHelper(mock_page, "body")
         helper.add_block("Heading")
@@ -53,31 +52,30 @@ class TestStreamFieldHelperAddBlock:
         mock_add_button.click.assert_called_once()
 
     def test_add_block_selects_block_type(self):
-        """add_block should select the correct block type."""
+        """add_block should select the correct block type with exact match."""
         mock_page = MagicMock()
         mock_panel = MagicMock()
         mock_option = MagicMock()
         mock_count_input = MagicMock()
         mock_menu = MagicMock()
-        mock_options_locator = MagicMock()
 
         # Setup mock chain
         mock_page.locator.side_effect = [
             mock_count_input,  # For _get_block_count
             mock_panel,  # For panel selector
             mock_menu,  # For menu wait
-            mock_options_locator,  # For option filter
         ]
-        mock_panel.locator.return_value.first = MagicMock()
+        mock_panel.locator.return_value.last = MagicMock()
         mock_count_input.count.return_value = 1
         mock_count_input.input_value.return_value = "0"
-        mock_options_locator.filter.return_value = mock_option
-        mock_option.first = mock_option
+        mock_page.get_by_role.return_value = mock_option
 
         helper = StreamFieldHelper(mock_page, "body")
         helper.add_block("Heading")
 
-        mock_options_locator.filter.assert_called_once_with(has_text="Heading")
+        mock_page.get_by_role.assert_called_once_with(
+            "option", name="Heading", exact=True
+        )
         mock_option.click.assert_called_once()
 
     def test_add_block_returns_block_index(self):
@@ -87,20 +85,17 @@ class TestStreamFieldHelperAddBlock:
         mock_option = MagicMock()
         mock_count_input = MagicMock()
         mock_menu = MagicMock()
-        mock_options_locator = MagicMock()
 
         # Setup: pretend there's already 2 blocks
         mock_page.locator.side_effect = [
             mock_count_input,  # For _get_block_count
             mock_panel,  # For panel selector
             mock_menu,  # For menu wait
-            mock_options_locator,  # For option filter
         ]
-        mock_panel.locator.return_value.first = MagicMock()
+        mock_panel.locator.return_value.last = MagicMock()
         mock_count_input.count.return_value = 1
         mock_count_input.input_value.return_value = "2"  # 2 existing blocks
-        mock_options_locator.filter.return_value = mock_option
-        mock_option.first = mock_option
+        mock_page.get_by_role.return_value = mock_option
 
         helper = StreamFieldHelper(mock_page, "body")
         index = helper.add_block("Quote")
