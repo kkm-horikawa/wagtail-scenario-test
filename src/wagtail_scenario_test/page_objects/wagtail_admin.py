@@ -502,6 +502,32 @@ class PageAdminPage(WagtailAdminPage):
         """
         return f"/admin/pages/add/{app_name}/{model_name}/{parent_page_id}/"
 
+    def edit_page_url(self, page_id: int) -> str:
+        """
+        Return the URL for editing a page.
+
+        Args:
+            page_id: The page ID to edit
+        """
+        return f"/admin/pages/{page_id}/edit/"
+
+    # =========================================================================
+    # Page Navigation
+    # =========================================================================
+
+    def edit_page(self, page_id: int) -> None:
+        """
+        Navigate to the edit page for an existing page.
+
+        Args:
+            page_id: The page ID to edit
+
+        Example:
+            page_admin.edit_page(5)  # Navigate to edit page with ID 5
+        """
+        self.goto(self.edit_page_url(page_id))
+        self.wait_for_navigation()
+
     # =========================================================================
     # Page Creation
     # =========================================================================

@@ -46,6 +46,35 @@ class TestPageAdminPageUrls:
 
         assert url == "/admin/pages/add/testapp/testpage/1/"
 
+    def test_edit_page_url(self, mock_page, test_url):
+        """edit_page_url should return correct URL."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        url = page_admin.edit_page_url(page_id=42)
+
+        assert url == "/admin/pages/42/edit/"
+
+
+class TestPageAdminPageEditPage:
+    """Tests for PageAdminPage edit_page method."""
+
+    def test_edit_page_navigates_to_edit_url(self, mock_page, test_url):
+        """edit_page should navigate to the edit URL."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.edit_page(page_id=5)
+
+        mock_page.goto.assert_called_with(f"{test_url}/admin/pages/5/edit/")
+
+    def test_edit_page_waits_for_navigation(self, mock_page, test_url):
+        """edit_page should wait for navigation to complete."""
+        page_admin = PageAdminPage(mock_page, test_url)
+
+        page_admin.edit_page(page_id=10)
+
+        # Should call wait_for_load_state (from wait_for_navigation)
+        mock_page.wait_for_load_state.assert_called()
+
 
 class TestPageAdminPageCreateChildPage:
     """Tests for PageAdminPage create_child_page method."""

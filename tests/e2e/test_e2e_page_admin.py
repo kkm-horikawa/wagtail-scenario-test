@@ -133,3 +133,47 @@ class TestPageAdminCreateChildPageE2E:
         )
 
         assert url == "/admin/pages/add/testapp/testpage/1/"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestPageAdminEditPageE2E:
+    """E2E tests for PageAdminPage.edit_page()."""
+
+    def test_edit_page_navigates_to_edit_form(
+        self, authenticated_page, server_url, home_page
+    ):
+        """Test navigating to edit an existing page."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        # First create a page to edit
+        page_admin.create_child_page(
+            parent_page_id=home_page.id,
+            page_type="testapp.TestPage",
+            title="Page To Edit",
+            slug="page-to-edit",
+        )
+        page_admin.assert_success_message()
+
+        # Get the created page ID
+        from tests.testapp.models import TestPage
+
+        created_page = TestPage.objects.get(title="Page To Edit")
+
+        # Navigate to edit the page
+        page_admin.edit_page(created_page.id)
+
+        # Should be on the edit page
+        assert f"/admin/pages/{created_page.id}/edit/" in authenticated_page.url
+
+        # The title field should be visible and contain the page title
+        title_input = authenticated_page.locator("#id_title")
+        assert title_input.input_value() == "Page To Edit"
+
+    def test_edit_page_url(self, authenticated_page, server_url):
+        """Test that edit_page_url returns correct URL."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.edit_page_url(page_id=42)
+
+        assert url == "/admin/pages/42/edit/"
