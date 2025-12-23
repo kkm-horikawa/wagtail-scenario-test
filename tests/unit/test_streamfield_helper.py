@@ -167,6 +167,113 @@ class TestStreamFieldHelperGetBlockType:
         mock_page.locator.assert_called_with("input[name='content-5-type']")
 
 
+class TestStreamFieldHelperIsBlockDeleted:
+    """Tests for StreamFieldHelper.is_block_deleted()."""
+
+    def test_is_block_deleted_returns_true(self):
+        """is_block_deleted should return True when deleted flag is '1'."""
+        mock_page = MagicMock()
+        mock_deleted_input = MagicMock()
+        mock_deleted_input.count.return_value = 1
+        mock_deleted_input.input_value.return_value = "1"
+
+        mock_page.locator.return_value = mock_deleted_input
+
+        helper = StreamFieldHelper(mock_page, "body")
+        result = helper.is_block_deleted(0)
+
+        assert result is True
+        mock_page.locator.assert_called_with("input[name='body-0-deleted']")
+
+    def test_is_block_deleted_returns_false_when_not_deleted(self):
+        """is_block_deleted should return False when deleted flag is empty."""
+        mock_page = MagicMock()
+        mock_deleted_input = MagicMock()
+        mock_deleted_input.count.return_value = 1
+        mock_deleted_input.input_value.return_value = ""
+
+        mock_page.locator.return_value = mock_deleted_input
+
+        helper = StreamFieldHelper(mock_page, "body")
+        result = helper.is_block_deleted(0)
+
+        assert result is False
+
+    def test_is_block_deleted_returns_false_when_no_input(self):
+        """is_block_deleted should return False when input not found."""
+        mock_page = MagicMock()
+        mock_deleted_input = MagicMock()
+        mock_deleted_input.count.return_value = 0
+
+        mock_page.locator.return_value = mock_deleted_input
+
+        helper = StreamFieldHelper(mock_page, "body")
+        result = helper.is_block_deleted(0)
+
+        assert result is False
+
+
+class TestStreamFieldHelperDeleteBlock:
+    """Tests for StreamFieldHelper.delete_block()."""
+
+    def test_delete_block_clicks_delete_button(self):
+        """delete_block should click the delete button."""
+        mock_page = MagicMock()
+        mock_id_input = MagicMock()
+        mock_id_input.count.return_value = 1
+        mock_id_input.input_value.return_value = "test-uuid-123"
+
+        mock_container = MagicMock()
+        mock_container.count.return_value = 1
+        mock_delete_btn = MagicMock()
+        mock_delete_btn.count.return_value = 1
+        mock_container.locator.return_value = mock_delete_btn
+
+        mock_page.locator.side_effect = [mock_id_input, mock_container]
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.delete_block(0)
+
+        mock_page.locator.assert_any_call("input[name='body-0-id']")
+        mock_page.locator.assert_any_call("[data-contentpath='test-uuid-123']")
+        mock_container.locator.assert_called_with("button[title='Delete']")
+        mock_delete_btn.click.assert_called_once()
+
+    def test_delete_block_raises_error_when_block_not_found(self):
+        """delete_block should raise ValueError when block not found."""
+        mock_page = MagicMock()
+        mock_id_input = MagicMock()
+        mock_id_input.count.return_value = 0
+
+        mock_page.locator.return_value = mock_id_input
+
+        helper = StreamFieldHelper(mock_page, "body")
+
+        import pytest
+
+        with pytest.raises(ValueError, match="Block at index 5 not found"):
+            helper.delete_block(5)
+
+    def test_delete_block_raises_error_when_container_not_found(self):
+        """delete_block should raise ValueError when container not found."""
+        mock_page = MagicMock()
+        mock_id_input = MagicMock()
+        mock_id_input.count.return_value = 1
+        mock_id_input.input_value.return_value = "test-uuid-456"
+
+        mock_container = MagicMock()
+        mock_container.count.return_value = 0
+
+        mock_page.locator.side_effect = [mock_id_input, mock_container]
+
+        helper = StreamFieldHelper(mock_page, "body")
+
+        import pytest
+
+        with pytest.raises(ValueError, match="Block container not found"):
+            helper.delete_block(0)
+
+
 class TestBlockPathNavigation:
     """Tests for BlockPath navigation methods."""
 

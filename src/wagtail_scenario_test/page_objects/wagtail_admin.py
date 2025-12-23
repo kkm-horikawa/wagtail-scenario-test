@@ -1411,6 +1411,65 @@ class StreamFieldHelper:
         type_input = self.page.locator(f"input[name='{self.field_name}-{index}-type']")
         return type_input.input_value()
 
+    def is_block_deleted(self, index: int) -> bool:
+        """
+        Check if a block at the specified index is deleted.
+
+        StreamField uses soft deletion - deleted blocks remain in the DOM
+        but are hidden and have a deleted flag set.
+
+        Args:
+            index: The block index (0-based)
+
+        Returns:
+            bool: True if the block is deleted, False otherwise
+        """
+        deleted_input = self.page.locator(
+            f"input[name='{self.field_name}-{index}-deleted']"
+        )
+        if deleted_input.count() == 0:
+            return False
+        return deleted_input.input_value() == "1"
+
+    def delete_block(self, index: int) -> None:
+        """
+        Delete a block at the specified index.
+
+        StreamField uses soft deletion - the block is hidden and marked
+        as deleted, but remains in the DOM until the page is saved.
+
+        Args:
+            index: The block index (0-based)
+
+        Raises:
+            ValueError: If the block at the specified index is not found
+
+        Example:
+            sf = StreamFieldHelper(page, "body")
+            sf.add_block("Heading")
+            sf.add_block("Quote")
+            sf.delete_block(1)  # Delete the Quote block
+            assert sf.is_block_deleted(1) is True
+        """
+        # Get block UUID to find its container
+        block_id_input = self.page.locator(
+            f"input[name='{self.field_name}-{index}-id']"
+        )
+        if block_id_input.count() == 0:
+            raise ValueError(f"Block at index {index} not found")
+
+        block_uuid = block_id_input.input_value()
+        container = self.page.locator(f"[data-contentpath='{block_uuid}']")
+
+        if container.count() == 0:
+            raise ValueError(f"Block container not found for UUID {block_uuid}")
+
+        # Click the delete button
+        delete_btn = container.locator("button[title='Delete']")
+        if delete_btn.count() > 0:
+            delete_btn.click()
+            self.page.wait_for_timeout(300)
+
     def select_from_chooser(self, title: str) -> None:
         """
         Select an item from an open chooser modal by title.
