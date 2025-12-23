@@ -43,15 +43,15 @@ class TestWagtailAdminPageAuth:
         mock_page.wait_for_url.assert_called_once_with("**/admin/**")
 
     def test_logout(self, mock_page, test_url):
-        """logout should click account menu and logout link."""
+        """logout should navigate to logout URL."""
         admin = WagtailAdminPage(mock_page, test_url)
 
         admin.logout()
 
-        # Should click account dropdown toggle
-        mock_page.locator.assert_called_with("[data-w-dropdown-target='toggle']")
-        # Should click logout link
-        mock_page.get_by_role.assert_called_with("link", name="Log out")
+        # Should navigate to logout URL
+        mock_page.goto.assert_called_with(f"{test_url}/admin/logout/")
+        # Should wait for navigation
+        mock_page.wait_for_load_state.assert_called()
 
     def test_is_logged_in_returns_true(self, mock_page, test_url):
         """is_logged_in should return True when on admin page."""

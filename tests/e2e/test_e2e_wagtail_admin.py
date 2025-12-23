@@ -20,7 +20,6 @@ class TestWagtailAdminE2E:
         # Should return a boolean (True when on admin pages, not login)
         assert isinstance(result, bool)
 
-    @pytest.mark.skip(reason="Logout selector varies by Wagtail version")
     def test_logout(self, authenticated_page, server_url):
         """Test logout navigates to logout page."""
         admin = WagtailAdmin(authenticated_page, server_url)

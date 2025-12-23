@@ -114,10 +114,10 @@ class TestWagtailAdminDelegation:
 
         admin.logout()
 
-        # Should click account dropdown toggle
-        mock_page.locator.assert_called_with("[data-w-dropdown-target='toggle']")
-        # Should click logout link
-        mock_page.get_by_role.assert_called_with("link", name="Log out")
+        # Should navigate to logout URL
+        mock_page.goto.assert_called_with(f"{test_url}/admin/logout/")
+        # Should wait for navigation
+        mock_page.wait_for_load_state.assert_called()
 
     def test_assert_success_message(self, mock_page, test_url, mock_playwright_expect):
         """assert_success_message should delegate to admin page."""
