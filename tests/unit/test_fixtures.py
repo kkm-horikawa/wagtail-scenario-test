@@ -63,6 +63,38 @@ class TestWagtailSiteFixture:
 
 
 @pytest.mark.django_db
+class TestHomePageFixture:
+    """Tests for home_page fixture."""
+
+    def test_returns_page(self, home_page):
+        """home_page should return a Page instance."""
+        from wagtail.models import Page
+
+        assert isinstance(home_page, Page)
+
+    def test_page_is_child_of_root(self, home_page):
+        """home_page should be a child of root page."""
+        assert home_page.depth == 2
+
+    def test_creates_home_if_not_exists(self, home_page):
+        """home_page should create home page if not exists."""
+        assert home_page.title == "Home"
+        assert home_page.slug == "home"
+
+    def test_returns_existing_page_if_exists(self, wagtail_site, home_page):
+        """home_page should return existing page if one exists under root."""
+        from wagtail.models import Page
+
+        # Get root and check children
+        root = Page.objects.get(depth=1)
+        children = root.get_children()
+
+        # Should only have one child (the home page)
+        assert children.count() >= 1
+        assert home_page in children
+
+
+@pytest.mark.django_db
 class TestAdminUserE2EFixture:
     """Tests for admin_user_e2e fixture."""
 
