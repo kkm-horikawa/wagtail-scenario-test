@@ -339,10 +339,23 @@ class SnippetAdminPage(WagtailAdminPage):
         """
         Delete the current snippet.
 
+        In Wagtail 7+, the Delete action is a link in the header "More" dropdown
+        menu, not a direct button. This method opens the dropdown and clicks
+        the Delete link.
+
         Args:
             confirm: Whether to confirm the deletion
         """
-        self.page.get_by_role("button", name="Delete").click()
+        # In Wagtail 7+, Delete is in the header "More" dropdown as a link
+        # Open the dropdown first using the w-dropdown controller
+        dropdown_toggle = self.page.locator(
+            "[data-controller='w-dropdown'] button[data-w-dropdown-target='toggle']"
+        )
+        dropdown_toggle.click()
+
+        # Click the Delete link (not button) in the dropdown
+        self.page.get_by_role("link", name="Delete").click()
+
         if confirm:
             self.page.get_by_role("button", name="Yes, delete").click()
         self.wait_for_navigation()
