@@ -57,11 +57,9 @@ class WagtailAdminPage(BasePage):
         self.page.wait_for_url(f"**{self.ADMIN_ROOT}**")
 
     def logout(self) -> None:
-        """Log out of Wagtail admin by clicking the logout link in account menu."""
-        # Click account button/avatar to open dropdown
-        self.page.locator("[data-w-dropdown-target='toggle']").first.click()
-        # Click logout link
-        self.page.get_by_role("link", name="Log out").click()
+        """Log out of Wagtail admin by navigating to the logout URL."""
+        self.goto(self.LOGOUT_URL)
+        self.wait_for_navigation()
 
     def is_logged_in(self) -> bool:
         """Check if currently logged in."""
