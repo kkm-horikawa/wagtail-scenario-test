@@ -12,7 +12,7 @@ on:
 
 jobs:
   test:
-    name: Python ${{ matrix.python-version }} / Django ${{ matrix.django-version }} / Wagtail ${{ matrix.wagtail-version }}
+    name: Py${{ matrix.python-version }}/Dj${{ matrix.django-version }}/Wt${{ matrix.wagtail-version }} (${{ matrix.split-group }}/3)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,6 +20,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         django-version: ["4.2", "5.1", "5.2"]
         wagtail-version: ["6.4", "7.0", "7.2"]
+        split-group: [1, 2, 3]
         exclude:
           # Django 5.2 requires Python 3.11+
           - python-version: "3.10"
@@ -69,7 +70,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest --cov --cov-report=term --cov-report=xml || test $? -eq 5
+          uv run pytest --cov --cov-report=term --cov-report=xml --splits 3 --group ${{ matrix.split-group }} || test $? -eq 5
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

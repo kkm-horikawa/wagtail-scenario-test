@@ -40,6 +40,7 @@ dependencies = [
     "pytest>=8.0",
     "pytest-django>=4.8",
     "pytest-playwright>=0.6.2",
+    "pytest-split>=0.10",
     "factory-boy>=3.3",
 ]
 
