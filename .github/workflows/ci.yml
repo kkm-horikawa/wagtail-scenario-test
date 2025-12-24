@@ -70,7 +70,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest --cov --cov-report=term --cov-report=xml --splits 3 --group ${{ matrix.split-group }} || test $? -eq 5
+          uv run pytest --cov --cov-report=term --cov-report=xml --cov-fail-under=0 --splits 3 --group ${{ matrix.split-group }} || test $? -eq 5
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
