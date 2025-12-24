@@ -1470,6 +1470,143 @@ class StreamFieldHelper:
             delete_btn.click()
             self.page.wait_for_timeout(300)
 
+    def _get_block_container(self, index: int):
+        """
+        Get the container element for a block at the specified index.
+
+        Args:
+            index: The block index (0-based)
+
+        Returns:
+            Locator: The container element
+
+        Raises:
+            ValueError: If the block is not found
+        """
+        block_id_input = self.page.locator(
+            f"input[name='{self.field_name}-{index}-id']"
+        )
+        if block_id_input.count() == 0:
+            raise ValueError(f"Block at index {index} not found")
+
+        block_uuid = block_id_input.input_value()
+        container = self.page.locator(f"[data-contentpath='{block_uuid}']")
+
+        if container.count() == 0:
+            raise ValueError(f"Block container not found for UUID {block_uuid}")
+
+        return container
+
+    def get_block_order(self, index: int) -> int:
+        """
+        Get the current order position of a block.
+
+        StreamField tracks block order separately from block indices.
+        The order value determines the display position of the block.
+
+        Args:
+            index: The block index (0-based)
+
+        Returns:
+            int: The order position of the block
+
+        Raises:
+            ValueError: If the block is not found
+        """
+        order_input = self.page.locator(
+            f"input[name='{self.field_name}-{index}-order']"
+        )
+        if order_input.count() == 0:
+            raise ValueError(f"Block at index {index} not found")
+        return int(order_input.input_value())
+
+    def move_block_up(self, index: int) -> None:
+        """
+        Move a block one position up.
+
+        Args:
+            index: The block index (0-based)
+
+        Raises:
+            ValueError: If the block is not found
+
+        Example:
+            sf = StreamFieldHelper(page, "body")
+            sf.add_block("Heading")
+            sf.add_block("Quote")
+            sf.move_block_up(1)  # Move Quote above Heading
+        """
+        container = self._get_block_container(index)
+        move_up_btn = container.locator("button[title='Move up']")
+        if move_up_btn.count() > 0:
+            move_up_btn.click()
+            self.page.wait_for_timeout(300)
+
+    def move_block_down(self, index: int) -> None:
+        """
+        Move a block one position down.
+
+        Args:
+            index: The block index (0-based)
+
+        Raises:
+            ValueError: If the block is not found
+
+        Example:
+            sf = StreamFieldHelper(page, "body")
+            sf.add_block("Heading")
+            sf.add_block("Quote")
+            sf.move_block_down(0)  # Move Heading below Quote
+        """
+        container = self._get_block_container(index)
+        move_down_btn = container.locator("button[title='Move down']")
+        if move_down_btn.count() > 0:
+            move_down_btn.click()
+            self.page.wait_for_timeout(300)
+
+    def reorder_blocks(self, from_index: int, to_index: int) -> None:
+        """
+        Move a block from one position to another.
+
+        This method uses the Move up/Move down buttons internally
+        to reorder blocks reliably.
+
+        Args:
+            from_index: The current index of the block to move
+            to_index: The target position for the block
+
+        Raises:
+            ValueError: If either index is invalid
+
+        Example:
+            sf = StreamFieldHelper(page, "body")
+            sf.add_block("Heading")  # index 0
+            sf.add_block("Quote")    # index 1
+            sf.add_block("Text")     # index 2
+
+            # Move Text (index 2) to the top (position 0)
+            sf.reorder_blocks(2, 0)
+        """
+        if from_index == to_index:
+            return
+
+        # Validate that the block exists
+        self._get_block_container(from_index)
+
+        current_order = self.get_block_order(from_index)
+        target_order = to_index
+
+        if current_order < target_order:
+            # Move down: need to click "Move down" multiple times
+            moves_needed = target_order - current_order
+            for _ in range(moves_needed):
+                self.move_block_down(from_index)
+        else:
+            # Move up: need to click "Move up" multiple times
+            moves_needed = current_order - target_order
+            for _ in range(moves_needed):
+                self.move_block_up(from_index)
+
     def select_from_chooser(self, title: str) -> None:
         """
         Select an item from an open chooser modal by title.

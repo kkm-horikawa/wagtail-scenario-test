@@ -274,6 +274,104 @@ class TestStreamFieldHelperDeleteBlock:
             helper.delete_block(0)
 
 
+class TestStreamFieldHelperGetBlockOrder:
+    """Tests for StreamFieldHelper.get_block_order()."""
+
+    def test_get_block_order_returns_order(self):
+        """get_block_order should return the order value."""
+        mock_page = MagicMock()
+        mock_order_input = MagicMock()
+        mock_order_input.count.return_value = 1
+        mock_order_input.input_value.return_value = "2"
+
+        mock_page.locator.return_value = mock_order_input
+
+        helper = StreamFieldHelper(mock_page, "body")
+        order = helper.get_block_order(0)
+
+        assert order == 2
+        mock_page.locator.assert_called_with("input[name='body-0-order']")
+
+    def test_get_block_order_raises_error_when_not_found(self):
+        """get_block_order should raise ValueError when block not found."""
+        mock_page = MagicMock()
+        mock_order_input = MagicMock()
+        mock_order_input.count.return_value = 0
+
+        mock_page.locator.return_value = mock_order_input
+
+        helper = StreamFieldHelper(mock_page, "body")
+
+        import pytest
+
+        with pytest.raises(ValueError, match="Block at index 5 not found"):
+            helper.get_block_order(5)
+
+
+class TestStreamFieldHelperMoveBlockUp:
+    """Tests for StreamFieldHelper.move_block_up()."""
+
+    def test_move_block_up_clicks_button(self):
+        """move_block_up should click the move up button."""
+        mock_page = MagicMock()
+        mock_id_input = MagicMock()
+        mock_id_input.count.return_value = 1
+        mock_id_input.input_value.return_value = "test-uuid-123"
+
+        mock_container = MagicMock()
+        mock_container.count.return_value = 1
+        mock_move_up_btn = MagicMock()
+        mock_move_up_btn.count.return_value = 1
+        mock_container.locator.return_value = mock_move_up_btn
+
+        mock_page.locator.side_effect = [mock_id_input, mock_container]
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.move_block_up(0)
+
+        mock_container.locator.assert_called_with("button[title='Move up']")
+        mock_move_up_btn.click.assert_called_once()
+
+
+class TestStreamFieldHelperMoveBlockDown:
+    """Tests for StreamFieldHelper.move_block_down()."""
+
+    def test_move_block_down_clicks_button(self):
+        """move_block_down should click the move down button."""
+        mock_page = MagicMock()
+        mock_id_input = MagicMock()
+        mock_id_input.count.return_value = 1
+        mock_id_input.input_value.return_value = "test-uuid-456"
+
+        mock_container = MagicMock()
+        mock_container.count.return_value = 1
+        mock_move_down_btn = MagicMock()
+        mock_move_down_btn.count.return_value = 1
+        mock_container.locator.return_value = mock_move_down_btn
+
+        mock_page.locator.side_effect = [mock_id_input, mock_container]
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.move_block_down(0)
+
+        mock_container.locator.assert_called_with("button[title='Move down']")
+        mock_move_down_btn.click.assert_called_once()
+
+
+class TestStreamFieldHelperReorderBlocks:
+    """Tests for StreamFieldHelper.reorder_blocks()."""
+
+    def test_reorder_blocks_same_index_does_nothing(self):
+        """reorder_blocks with same indices should do nothing."""
+        mock_page = MagicMock()
+
+        helper = StreamFieldHelper(mock_page, "body")
+        helper.reorder_blocks(0, 0)
+
+        # No locator calls should be made
+        mock_page.locator.assert_not_called()
+
+
 class TestBlockPathNavigation:
     """Tests for BlockPath navigation methods."""
 
