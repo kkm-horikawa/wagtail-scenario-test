@@ -1407,3 +1407,152 @@ class TestStreamFieldHelperDeleteBlockE2E:
 
         with pytest.raises(ValueError, match="Block at index 5 not found"):
             sf.delete_block(5)
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+class TestStreamFieldHelperReorderBlocksE2E:
+    """E2E tests for StreamFieldHelper block reordering."""
+
+    def test_move_block_up(self, authenticated_page, server_url, home_page):
+        """Test moving a block up one position."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add two blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("First")
+        sf.add_block("Quote")
+        sf.block(1).fill("Second")
+
+        # Check initial order
+        assert sf.get_block_order(0) == 0
+        assert sf.get_block_order(1) == 1
+
+        # Move block 1 up
+        sf.move_block_up(1)
+
+        # Check order changed
+        assert sf.get_block_order(1) == 0
+        assert sf.get_block_order(0) == 1
+
+    def test_move_block_down(self, authenticated_page, server_url, home_page):
+        """Test moving a block down one position."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add two blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("First")
+        sf.add_block("Quote")
+        sf.block(1).fill("Second")
+
+        # Move block 0 down
+        sf.move_block_down(0)
+
+        # Check order changed
+        assert sf.get_block_order(0) == 1
+        assert sf.get_block_order(1) == 0
+
+    def test_reorder_blocks_move_up(self, authenticated_page, server_url, home_page):
+        """Test reorder_blocks moving a block up multiple positions."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add three blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("First")
+        sf.add_block("Quote")
+        sf.block(1).fill("Second")
+        sf.add_block("Heading")
+        sf.block(2).fill("Third")
+
+        # Move block 2 to position 0
+        sf.reorder_blocks(2, 0)
+
+        # Check order: block 2 should now be first
+        assert sf.get_block_order(2) == 0
+        assert sf.get_block_order(0) == 1
+        assert sf.get_block_order(1) == 2
+
+    def test_reorder_blocks_move_down(self, authenticated_page, server_url, home_page):
+        """Test reorder_blocks moving a block down multiple positions."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add three blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("First")
+        sf.add_block("Quote")
+        sf.block(1).fill("Second")
+        sf.add_block("Heading")
+        sf.block(2).fill("Third")
+
+        # Move block 0 to position 2
+        sf.reorder_blocks(0, 2)
+
+        # Check order: block 0 should now be last
+        assert sf.get_block_order(0) == 2
+        assert sf.get_block_order(1) == 0
+        assert sf.get_block_order(2) == 1
+
+    def test_save_page_after_reorder(self, authenticated_page, server_url, home_page):
+        """Test saving a page after reordering blocks."""
+        page_admin = PageAdminPage(authenticated_page, server_url)
+
+        url = page_admin.add_child_page_url(home_page.id, "testapp", "streamfieldpage")
+        page_admin.goto(url)
+        page_admin.wait_for_navigation()
+
+        authenticated_page.locator("#id_title").fill("Reordered Page")
+
+        sf = StreamFieldHelper(authenticated_page, "body")
+
+        # Add three blocks
+        sf.add_block("Heading")
+        sf.block(0).fill("First")
+        sf.add_block("Quote")
+        sf.block(1).fill("Second")
+        sf.add_block("Heading")
+        sf.block(2).fill("Third")
+
+        # Move block 2 to the top
+        sf.reorder_blocks(2, 0)
+
+        # Save the page
+        authenticated_page.get_by_role("tab", name="Promote").click()
+        authenticated_page.locator("#id_slug").fill("reordered-page")
+        authenticated_page.get_by_role("button", name="Save draft").click()
+        page_admin.wait_for_navigation()
+
+        page_admin.assert_success_message()
+
+        # Verify the order was saved correctly
+        from tests.testapp.models import StreamFieldPage
+
+        created_page = StreamFieldPage.objects.get(title="Reordered Page")
+        assert len(created_page.body) == 3
+        # After reorder, order should be: Third, First, Second
+        assert created_page.body[0].value == "Third"
+        assert created_page.body[1].value == "First"
+        assert created_page.body[2].value == "Second"
