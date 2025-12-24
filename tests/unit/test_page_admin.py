@@ -461,3 +461,37 @@ class TestPageAdminPageGenerateSlug:
         page_admin = PageAdminPage(mock_page, test_url)
 
         assert page_admin._generate_slug("hello_world") == "hello-world"
+
+
+class TestPageAdminPageStreamfield:
+    """Tests for PageAdminPage streamfield method."""
+
+    def test_streamfield_returns_helper(self, mock_page, test_url):
+        """streamfield should return a StreamFieldHelper instance."""
+        from wagtail_scenario_test.page_objects.wagtail_admin import StreamFieldHelper
+
+        page_admin = PageAdminPage(mock_page, test_url)
+        sf = page_admin.streamfield("body")
+
+        assert isinstance(sf, StreamFieldHelper)
+
+    def test_streamfield_default_field_name(self, mock_page, test_url):
+        """streamfield should use 'body' as default field name."""
+        page_admin = PageAdminPage(mock_page, test_url)
+        sf = page_admin.streamfield()
+
+        assert sf.field_name == "body"
+
+    def test_streamfield_with_custom_field_name(self, mock_page, test_url):
+        """streamfield should accept custom field name."""
+        page_admin = PageAdminPage(mock_page, test_url)
+        sf = page_admin.streamfield("content")
+
+        assert sf.field_name == "content"
+
+    def test_streamfield_uses_same_page(self, mock_page, test_url):
+        """streamfield should pass the same Playwright page to helper."""
+        page_admin = PageAdminPage(mock_page, test_url)
+        sf = page_admin.streamfield("body")
+
+        assert sf.page is mock_page
