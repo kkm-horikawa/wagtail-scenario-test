@@ -1,13 +1,22 @@
 # wagtail-scenario-test
 
+[![PyPI version](https://badge.fury.io/py/wagtail-scenario-test.svg)](https://badge.fury.io/py/wagtail-scenario-test)
+[![CI](https://github.com/kkm-horikawa/wagtail-scenario-test/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/kkm-horikawa/wagtail-scenario-test/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/kkm-horikawa/wagtail-scenario-test/graph/badge.svg)](https://codecov.io/gh/kkm-horikawa/wagtail-scenario-test)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Published on Django Packages](https://img.shields.io/badge/Published%20on-Django%20Packages-0c3c26)](https://djangopackages.org/packages/p/wagtail-scenario-test/)
+
 E2E scenario testing framework for Wagtail applications using Playwright.
 
 ## Features
 
 - **WagtailAdmin Facade**: Simple, intuitive API for Wagtail admin operations
 - **Page Object Pattern**: Maintainable abstractions for Wagtail admin UI
+- **StreamFieldHelper**: Fluent API for StreamField block manipulation
+- **PageAdminPage**: Complete page lifecycle management (create, edit, publish, delete)
 - **Pytest Fixtures**: Ready-to-use fixtures for authenticated browser sessions
 - **Factory Support**: Base factories for test data creation
+- **Video Recording**: Record and convert test videos to GIF
 
 ## Installation
 
@@ -122,6 +131,68 @@ snippet.assert_item_created("New Item")
 snippet.assert_validation_error("This field is required")
 ```
 
+### Page Operations
+
+```python
+from wagtail_scenario_test import PageAdminPage
+
+page_admin = PageAdminPage(page, base_url)
+
+# Navigation
+page_admin.navigate_to_explorer()        # Open page explorer panel
+page_admin.edit_page(5)                  # Edit page by ID
+
+# Page lifecycle
+page_admin.save_draft()                  # Save as draft
+page_admin.publish()                     # Publish the page
+page_admin.unpublish()                   # Unpublish the page
+page_admin.delete_page(5)                # Delete page with confirmation
+
+# Preview and live URLs
+page_admin.visit_preview(5)              # Navigate to preview
+page_admin.visit_live(5)                 # Navigate to live page
+url = page_admin.get_live_url()          # Get live URL from editor
+```
+
+### StreamField Operations
+
+```python
+from wagtail_scenario_test import StreamFieldHelper, PageAdminPage
+
+# Use within a page edit context
+page_admin = PageAdminPage(page, base_url)
+page_admin.edit_page(page_id)
+
+# Initialize with field name (default: "body")
+sf = StreamFieldHelper(page, "body")
+
+# Add blocks
+index = sf.add_block("Heading")          # Returns new block index
+sf.block(index).fill("My Heading")       # Fill block content
+
+# Work with StructBlocks
+index = sf.add_block("Hero Section")
+sf.block(index).struct("title").fill("Welcome")
+sf.block(index).struct("subtitle").fill("To our site")
+
+# Work with ListBlocks
+index = sf.add_block("Links")
+sf.block(index).item(0).struct("title").fill("Google")
+sf.block(index).item(0).struct("url").fill("https://google.com")
+
+# Block management
+sf.delete_block(1)                       # Delete block at index
+sf.move_block_up(1)                      # Move block up
+sf.move_block_down(0)                    # Move block down
+sf.reorder_blocks(0, 2)                  # Move block from position 0 to 2
+
+# Query blocks
+count = sf.get_block_count()             # Get number of blocks
+block_type = sf.get_block_type(0)        # Get block type
+is_deleted = sf.is_block_deleted(0)      # Check if block is deleted
+order = sf.get_block_order(0)            # Get block order position
+```
+
 ## Fixtures
 
 All fixtures are automatically available when the package is installed:
@@ -135,6 +206,8 @@ All fixtures are automatically available when the package is installed:
 | `admin_user_e2e` | function | Creates admin user for E2E testing |
 | `admin_credentials` | function | Default admin credentials |
 | `wagtail_site` | function | Creates Wagtail site with root page |
+| `home_page` | function | Returns the root page (HomePage) |
+| `test_page` | function | Creates a test page under home_page |
 | `storage_state_path` | session | Path for storing auth state |
 
 ### Usage Example
@@ -388,6 +461,7 @@ def test_edit_snippet(authenticated_page, server_url):
 - pytest 8.0+
 - pytest-django 4.8+
 - pytest-playwright 0.6.2+
+- factory-boy 3.3+
 
 ## License
 
