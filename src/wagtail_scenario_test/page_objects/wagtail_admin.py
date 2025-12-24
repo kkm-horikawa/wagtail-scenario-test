@@ -852,6 +852,31 @@ class PageAdminPage(WagtailAdminPage):
         slug = re.sub(r"-+", "-", slug)
         return slug.strip("-")
 
+    # =========================================================================
+    # StreamField Helper
+    # =========================================================================
+
+    def streamfield(self, field_name: str = "body") -> StreamFieldHelper:
+        """
+        Get a StreamFieldHelper for manipulating StreamField blocks.
+
+        Must be called while on a page edit screen.
+
+        Args:
+            field_name: The name of the StreamField (default: "body")
+
+        Returns:
+            StreamFieldHelper for the specified field
+
+        Example:
+            page_admin = PageAdminPage(page, base_url)
+            page_admin.edit_page(5)
+            sf = page_admin.streamfield("body")
+            sf.add_block("Heading")
+            sf.block(0).fill("Hello World")
+        """
+        return StreamFieldHelper(self.page, field_name)
+
 
 class BlockPath:
     """
