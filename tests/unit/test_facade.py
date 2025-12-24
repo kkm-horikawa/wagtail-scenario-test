@@ -1,7 +1,10 @@
 """Unit tests for WagtailAdmin facade."""
 
 from wagtail_scenario_test.page_objects.facade import WagtailAdmin
-from wagtail_scenario_test.page_objects.wagtail_admin import SnippetAdminPage
+from wagtail_scenario_test.page_objects.wagtail_admin import (
+    PageAdminPage,
+    SnippetAdminPage,
+)
 
 
 class TestWagtailAdminInit:
@@ -107,14 +110,29 @@ class TestWagtailAdminDelegation:
 
     def test_logout(self, mock_page, test_url):
         """logout should delegate to admin page."""
+        from unittest.mock import MagicMock
+
+        # Setup mock for sidebar footer button
+        mock_user_button = MagicMock()
+        mock_user_button.count.return_value = 1
+        mock_page.locator.return_value.first = mock_user_button
+
+        # Setup mock for logout link
+        mock_logout_link = MagicMock()
+        mock_logout_link.count.return_value = 1
+        mock_page.get_by_text.return_value = mock_logout_link
+
         admin = WagtailAdmin(mock_page, test_url)
 
         admin.logout()
 
-        # Should click account dropdown toggle
-        mock_page.locator.assert_called_with("[data-w-dropdown-target='toggle']")
+        # Should click user button in sidebar footer
+        mock_page.locator.assert_called_with(".sidebar-footer button")
+        mock_user_button.click.assert_called_once()
+
         # Should click logout link
-        mock_page.get_by_role.assert_called_with("link", name="Log out")
+        mock_page.get_by_text.assert_called_with("Log out", exact=True)
+        mock_logout_link.click.assert_called_once()
 
     def test_assert_success_message(self, mock_page, test_url, mock_playwright_expect):
         """assert_success_message should delegate to admin page."""
@@ -207,3 +225,40 @@ class TestWagtailAdminAdditionalMethods:
         mock_page.wait_for_load_state.assert_called_once_with(
             "networkidle", timeout=5000
         )
+
+
+class TestWagtailAdminPages:
+    """Tests for WagtailAdmin.pages() method."""
+
+    def test_pages_returns_page_admin_page(self, mock_page, test_url):
+        """pages() should return a PageAdminPage instance."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        result = admin.pages()
+
+        assert isinstance(result, PageAdminPage)
+
+    def test_pages_shares_page(self, mock_page, test_url):
+        """pages() should share the same page instance."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        result = admin.pages()
+
+        assert result.page is mock_page
+
+    def test_pages_returns_new_instance(self, mock_page, test_url):
+        """pages() should return new instance each time."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        result1 = admin.pages()
+        result2 = admin.pages()
+
+        assert result1 is not result2
+
+    def test_pages_navigate_to_explorer(self, mock_page, test_url):
+        """pages().navigate_to_explorer() should work."""
+        admin = WagtailAdmin(mock_page, test_url)
+
+        admin.pages().navigate_to_explorer()
+
+        mock_page.get_by_role.assert_called_with("button", name="Pages")

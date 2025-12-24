@@ -32,11 +32,19 @@ class WagtailUserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = get_user_model()
         django_get_or_create = ("username",)
+        skip_postgeneration_save = True
 
     username = factory.Sequence(lambda n: f"user{n}")
     email = factory.LazyAttribute(lambda obj: f"{obj.username}@example.com")
-    password = factory.PostGenerationMethodCall("set_password", "password123")
     is_active = True
+
+    @factory.post_generation
+    def password(self, create: bool, extracted: str | None, **kwargs: object) -> None:
+        """Set password after user creation."""
+        password = extracted or "password123"
+        self.set_password(password)  # type: ignore[attr-defined]
+        if create:
+            self.save()  # type: ignore[attr-defined]
 
 
 class WagtailSuperUserFactory(WagtailUserFactory):

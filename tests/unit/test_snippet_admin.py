@@ -225,7 +225,7 @@ class TestSnippetAdminPageFormInteractions:
         mock_page.get_by_role.return_value.click.assert_called_once()
 
     def test_delete_with_confirm(self, mock_page, test_url):
-        """delete should click Delete and confirm."""
+        """delete should open dropdown, click Delete link, and confirm."""
         page = SnippetAdminPage(
             mock_page,
             test_url,
@@ -235,13 +235,18 @@ class TestSnippetAdminPageFormInteractions:
 
         page.delete()
 
-        # Check both Delete and Yes, delete were clicked
-        assert mock_page.get_by_role.call_count == 2
-        mock_page.get_by_role.assert_any_call("button", name="Delete")
+        # Check dropdown toggle was clicked
+        mock_page.locator.assert_any_call(
+            "[data-controller='w-dropdown'] button[data-w-dropdown-target='toggle']"
+        )
+        mock_page.locator.return_value.click.assert_called()
+
+        # Check Delete link (not button) and Yes, delete button were clicked
+        mock_page.get_by_role.assert_any_call("link", name="Delete", exact=True)
         mock_page.get_by_role.assert_any_call("button", name="Yes, delete")
 
     def test_delete_without_confirm(self, mock_page, test_url):
-        """delete with confirm=False should only click Delete."""
+        """delete with confirm=False should only open dropdown and click Delete link."""
         page = SnippetAdminPage(
             mock_page,
             test_url,
@@ -251,8 +256,13 @@ class TestSnippetAdminPageFormInteractions:
 
         page.delete(confirm=False)
 
-        # Only Delete button clicked
-        mock_page.get_by_role.assert_called_once_with("button", name="Delete")
+        # Check dropdown toggle was clicked
+        mock_page.locator.assert_any_call(
+            "[data-controller='w-dropdown'] button[data-w-dropdown-target='toggle']"
+        )
+
+        # Only Delete link clicked (not the confirmation button)
+        mock_page.get_by_role.assert_called_once_with("link", name="Delete", exact=True)
 
 
 class TestSnippetAdminPageListOperations:

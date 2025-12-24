@@ -8,6 +8,8 @@ available in tests.
 Available fixtures:
     - server_url: Base URL of the live test server
     - wagtail_site: Creates a Wagtail site with root page
+    - home_page: Gets or creates a home page under site root
+    - test_page: Creates a test page under home_page
     - admin_credentials: Returns default admin credentials
     - admin_user_e2e: Creates an admin user for E2E testing
     - authenticated_page: Playwright page logged into Wagtail admin
@@ -102,6 +104,72 @@ def wagtail_site(db):
         },
     )
     return site
+
+
+@pytest.fixture
+def home_page(db, wagtail_site):
+    """
+    Get or create a home page under the site root.
+
+    This fixture provides a page that can be used as a parent for
+    creating test pages. It ensures a page exists under the root
+    for proper URL routing.
+
+    Args:
+        db: pytest-django db fixture
+        wagtail_site: Ensures site and root page exist
+
+    Returns:
+        Page: A page that can be used as parent for test pages
+
+    Example:
+        def test_create_page(authenticated_page, server_url, home_page):
+            page_admin = PageAdminPage(authenticated_page, server_url)
+            page_admin.create_child_page(
+                parent_page_id=home_page.id,
+                page_type="myapp.MyPage",
+                title="Test Page",
+            )
+    """
+    from wagtail.models import Page
+
+    root = Page.objects.get(depth=1)
+    home = root.get_children().first()
+    if home is None:
+        home = Page(title="Home", slug="home")
+        root.add_child(instance=home)
+    return home
+
+
+@pytest.fixture
+def test_page(db, home_page):
+    """
+    Create a test page under home_page.
+
+    This fixture provides a page that can be used as a target for
+    page operations (edit, delete, publish, etc.) in tests.
+
+    Args:
+        db: pytest-django db fixture
+        home_page: Parent page for the test page
+
+    Returns:
+        Page: A test page under home_page
+
+    Example:
+        def test_edit_page(authenticated_page, server_url, test_page):
+            page_admin = PageAdminPage(authenticated_page, server_url)
+            page_admin.edit_page(test_page.id)
+            # Now on edit page for test_page
+    """
+    from wagtail.models import Page
+
+    page = Page(
+        title="Test Page",
+        slug="test-page",
+    )
+    home_page.add_child(instance=page)
+    return page
 
 
 @pytest.fixture
@@ -327,6 +395,86 @@ def pytest_configure(config):
         "markers",
         "slow: mark test as slow-running",
     )
+
+
+@pytest.fixture
+def test_image(db, wagtail_site):
+    """
+    Create a test image in Wagtail's image library.
+
+    This fixture creates an image that can be used for testing
+    ImageChooserBlock and other image selection functionality.
+
+    Returns:
+        Image: A Wagtail Image instance
+
+    Example:
+        def test_image_chooser(authenticated_page, server_url, test_image):
+            # test_image.title is "Test Image"
+            sf.block(0).click_chooser()
+            sf.select_from_chooser(test_image.title)
+    """
+    from io import BytesIO
+
+    from django.core.files.images import ImageFile
+    from PIL import Image as PILImage
+    from wagtail.images.models import Image
+    from wagtail.models import Collection
+
+    # Ensure root collection exists (required for Wagtail images)
+    if not Collection.objects.exists():
+        Collection.add_root(name="Root")
+
+    # Create a simple test image in memory
+    pil_image = PILImage.new("RGB", (100, 100), color="red")
+    image_io = BytesIO()
+    pil_image.save(image_io, format="PNG")
+    image_io.seek(0)
+
+    # Create Wagtail Image
+    image = Image.objects.create(
+        title="Test Image",
+        file=ImageFile(image_io, name="test_image.png"),
+    )
+    return image
+
+
+@pytest.fixture
+def test_document(db, wagtail_site):
+    """
+    Create a test document in Wagtail's document library.
+
+    This fixture creates a document that can be used for testing
+    DocumentChooserBlock and other document selection functionality.
+
+    Returns:
+        Document: A Wagtail Document instance
+
+    Example:
+        def test_document_chooser(authenticated_page, server_url, test_document):
+            # test_document.title is "Test Document"
+            sf.block(0).click_chooser()
+            sf.select_from_chooser(test_document.title)
+    """
+    from io import BytesIO
+
+    from django.core.files.base import ContentFile
+    from wagtail.documents.models import Document
+    from wagtail.models import Collection
+
+    # Ensure root collection exists (required for Wagtail documents)
+    if not Collection.objects.exists():
+        Collection.add_root(name="Root")
+
+    # Create a simple test document in memory
+    content = BytesIO(b"Test document content")
+
+    # Create Wagtail Document
+    document = Document.objects.create(
+        title="Test Document",
+        file=ContentFile(content.read(), name="test_document.txt"),
+    )
+    return document
 
 
 def pytest_sessionfinish(session, exitstatus):

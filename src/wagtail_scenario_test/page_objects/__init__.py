@@ -8,13 +8,19 @@ components. When Wagtail's UI changes, only these classes need updating.
 from wagtail_scenario_test.page_objects.base import BasePage
 from wagtail_scenario_test.page_objects.facade import WagtailAdmin
 from wagtail_scenario_test.page_objects.wagtail_admin import (
+    BlockPath,
+    PageAdminPage,
     SnippetAdminPage,
+    StreamFieldHelper,
     WagtailAdminPage,
 )
 
 __all__ = [
     "BasePage",
+    "BlockPath",
     "WagtailAdmin",
     "WagtailAdminPage",
     "SnippetAdminPage",
+    "PageAdminPage",
+    "StreamFieldHelper",
 ]

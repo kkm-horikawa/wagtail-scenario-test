@@ -1,5 +1,7 @@
 """Unit tests for WagtailAdminPage."""
 
+from unittest.mock import MagicMock
+
 from wagtail_scenario_test.page_objects.wagtail_admin import WagtailAdminPage
 
 
@@ -43,15 +45,28 @@ class TestWagtailAdminPageAuth:
         mock_page.wait_for_url.assert_called_once_with("**/admin/**")
 
     def test_logout(self, mock_page, test_url):
-        """logout should click account menu and logout link."""
+        """logout should click UI elements to log out."""
+        # Setup mock for sidebar footer button
+        mock_user_button = MagicMock()
+        mock_user_button.count.return_value = 1
+        mock_page.locator.return_value.first = mock_user_button
+
+        # Setup mock for logout link
+        mock_logout_link = MagicMock()
+        mock_logout_link.count.return_value = 1
+        mock_page.get_by_text.return_value = mock_logout_link
+
         admin = WagtailAdminPage(mock_page, test_url)
 
         admin.logout()
 
-        # Should click account dropdown toggle
-        mock_page.locator.assert_called_with("[data-w-dropdown-target='toggle']")
+        # Should click user button in sidebar footer
+        mock_page.locator.assert_called_with(".sidebar-footer button")
+        mock_user_button.click.assert_called_once()
+
         # Should click logout link
-        mock_page.get_by_role.assert_called_with("link", name="Log out")
+        mock_page.get_by_text.assert_called_with("Log out", exact=True)
+        mock_logout_link.click.assert_called_once()
 
     def test_is_logged_in_returns_true(self, mock_page, test_url):
         """is_logged_in should return True when on admin page."""

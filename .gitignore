@@ -78,13 +78,22 @@ dmypy.json
 screenshots/
 test-results/
 
+# Wagtail media (test artifacts)
+documents/
+images/
+original_images/
+
 # OS
 .DS_Store
 Thumbs.db
 
 # Claude Code
 .claude/
+.claude
 CLAUDE.md
 
 # uv (library project - no lock file)
 uv.lock
+
+# Demo project (for investigation)
+demo/
